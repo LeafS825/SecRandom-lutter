@@ -1,0 +1,184 @@
+import 'dart:async';
+import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/app_provider.dart';
+import '../models/student.dart';
+
+class NameDisplay extends StatefulWidget {
+  final bool isWideScreen;
+
+  const NameDisplay({super.key, this.isWideScreen = true});
+
+  @override
+  State<NameDisplay> createState() => _NameDisplayState();
+}
+
+class _NameDisplayState extends State<NameDisplay> {
+  Timer? _timer;
+  List<Student> _displayedStudents = [];
+  final Random _random = Random();
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startRollingAnimation(AppProvider provider) {
+    if (_timer != null && _timer!.isActive) return;
+    
+    _timer = Timer.periodic(const Duration(milliseconds: 80), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      
+      final all = provider.allStudents;
+      if (all.isEmpty) return;
+
+      setState(() {
+        _displayedStudents = List.generate(
+          provider.selectCount, 
+          (_) => all[_random.nextInt(all.length)]
+        );
+      });
+    });
+  }
+
+  void _stopRollingAnimation() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appProvider = Provider.of<AppProvider>(context);
+
+    if (appProvider.isRolling) {
+      _startRollingAnimation(appProvider);
+    } else {
+      _stopRollingAnimation();
+      if (appProvider.currentSelection.isNotEmpty) {
+        _displayedStudents = appProvider.currentSelection;
+      }
+    }
+
+    if (widget.isWideScreen) {
+      return Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Center(
+          child: _displayedStudents.isEmpty
+              ? Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.touch_app, size: 64, color: Theme.of(context).disabledColor),
+                    const SizedBox(height: 16),
+                    Text(
+                      '准备点名',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: Theme.of(context).disabledColor,
+                      ),
+                    ),
+                  ],
+                )
+              : SingleChildScrollView(
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 16.0,
+                    runSpacing: 16.0,
+                    children: _displayedStudents.map((student) {
+                      return AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        transitionBuilder: (Widget child, Animation<double> animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0.0, 0.2),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          key: ValueKey<String>("${student.id}-${student.name}"),
+                          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                          child: Text(
+                            student.name,
+                            style: TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).textTheme.bodyLarge?.color,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+        ),
+      );
+    } else {
+      return Center(
+        child: _displayedStudents.isEmpty
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.touch_app, size: 64, color: Theme.of(context).disabledColor),
+                  const SizedBox(height: 16),
+                  Text(
+                    '准备点名',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: Theme.of(context).disabledColor,
+                    ),
+                  ),
+                ],
+              )
+            : SingleChildScrollView(
+                child: Center(
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 16.0,
+                    runSpacing: 16.0,
+                    children: _displayedStudents.map((student) {
+                      return AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        transitionBuilder: (Widget child, Animation<double> animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0.0, 0.2),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: Padding(
+                          key: ValueKey<String>("${student.id}-${student.name}"),
+                          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+                          child: Text(
+                            student.name,
+                            style: TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).textTheme.bodyLarge?.color,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+      );
+    }
+  }
+}

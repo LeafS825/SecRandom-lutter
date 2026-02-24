@@ -1,0 +1,88 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:secrandom_lutter/models/student.dart';
+import 'package:secrandom_lutter/models/history_record.dart';
+import 'package:secrandom_lutter/services/random_service.dart';
+import 'package:secrandom_lutter/services/data_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+void main() {
+  group('Student Model Tests', () {
+    test('Student should be created correctly', () {
+      final student = Student(id: 1, name: 'John', gender: 'Male', group: 'Class A', exist: true);
+      expect(student.id, 1);
+      expect(student.name, 'John');
+    });
+
+    test('Student serialization', () {
+      final student = Student(id: 1, name: 'John', gender: 'Male', group: 'Class A', exist: true);
+      final json = student.toJson();
+      expect(json['id'], 1);
+      expect(json['name'], 'John');
+      
+      final student2 = Student.fromJson(json);
+      expect(student2.id, student.id);
+      expect(student2.name, student.name);
+    });
+  });
+
+  group('RandomService Tests', () {
+    final randomService = RandomService();
+    final students = List.generate(10, (i) => Student(id: i, name: 'S$i', gender: 'M', group: 'C1', exist: true));
+
+    test('pickRandomStudents should return requested count', () {
+      final picked = randomService.pickRandomStudents(students, 3);
+      expect(picked.length, 3);
+    });
+
+    test('pickRandomStudents should return all if count > available', () {
+      final picked = randomService.pickRandomStudents(students, 20);
+      expect(picked.length, 10);
+    });
+
+    test('pickRandomStudents should return unique items', () {
+      final picked = randomService.pickRandomStudents(students, 5);
+      final ids = picked.map((s) => s.id).toSet();
+      expect(ids.length, 5);
+    });
+  });
+
+  group('DataService Tests', () {
+    test('loadStudents returns initial data when empty', () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = DataService();
+      final students = await service.loadStudents();
+      expect(students.isNotEmpty, true);
+      expect(students.length, 40); // Default count
+    });
+
+    test('save and load students', () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = DataService();
+      final newStudent = Student(id: 99, name: 'New Guy', gender: 'M', group: 'C1', exist: true);
+      await service.saveStudents([newStudent]);
+      
+      final loaded = await service.loadStudents();
+      expect(loaded.length, 1);
+      expect(loaded.first.name, 'New Guy');
+    });
+
+    test('save and load history', () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = DataService();
+      final record = HistoryRecord(
+        id: 1, 
+        name: 'Record 1', 
+        drawMethod: 1, 
+        drawTime: '2023-01-01', 
+        drawPeopleNumbers: 1, 
+        drawGroup: 'All', 
+        drawGender: 'All'
+      );
+      await service.saveHistory([record]);
+      
+      final history = await service.loadHistory();
+      expect(history.length, 1);
+      expect(history.first.name, 'Record 1');
+    });
+  });
+}
