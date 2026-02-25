@@ -8,12 +8,6 @@ class GroupAllocationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appProvider = Provider.of<AppProvider>(context);
-    final groups = appProvider.getGroupsForClass(selectedClass);
-    final students = selectedClass != null
-        ? appProvider.allStudents.where((s) => s.className == selectedClass).toList()
-        : appProvider.allStudents;
-
     if (selectedClass == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('分配小组')),
@@ -21,41 +15,47 @@ class GroupAllocationScreen extends StatelessWidget {
       );
     }
 
-    if (groups.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: Text('分配小组 ($selectedClass)')),
-        body: const Center(child: Text('暂无小组，请先在设置中添加小组')),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(title: Text('分配小组 ($selectedClass)')),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: students.length,
-        itemBuilder: (context, index) {
-          final student = students[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ListTile(
-              leading: CircleAvatar(child: Text('${student.id}')),
-              title: Text(student.name),
-              trailing: DropdownButton<String>(
-                value: groups.contains(student.group) ? student.group : null,
-                hint: const Text('选择小组'),
-                items: groups.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  if (newValue != null) {
-                    appProvider.updateStudentGroup(student.id, newValue);
-                  }
-                },
-              ),
-            ),
+      body: Consumer<AppProvider>(
+        builder: (context, appProvider, child) {
+          final groups = appProvider.getGroupsForClass(selectedClass);
+          final students = selectedClass == null
+              ? appProvider.allStudents
+              : appProvider.allStudents.where((s) => s.className == selectedClass).toList();
+
+          if (groups.isEmpty) {
+            return const Center(child: Text('暂无小组，请先在设置中添加小组'));
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: students.length,
+            itemBuilder: (context, index) {
+              final student = students[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: CircleAvatar(child: Text('${student.id}')),
+                  title: Text(student.name),
+                  trailing: DropdownButton<String>(
+                    value: groups.contains(student.group) ? student.group : null,
+                    hint: const Text('选择小组'),
+                    items: groups.map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                    onChanged: (newValue) {
+                      if (newValue != null) {
+                        appProvider.updateStudentGroup(student.id, newValue);
+                      }
+                    },
+                  ),
+                ),
+              );
+            },
           );
         },
       ),

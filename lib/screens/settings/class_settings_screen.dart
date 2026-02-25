@@ -7,63 +7,71 @@ class ClassSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appProvider = Provider.of<AppProvider>(context);
-    final students = appProvider.allStudents;
-    final groups = appProvider.groups;
-
     return Scaffold(
       appBar: AppBar(title: const Text('设置班级名称')),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: groups.length,
-        itemBuilder: (context, index) {
-          final className = groups[index];
-          final studentCount = students.where((s) => s.className == className).length;
-          
-          return Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
+      body: Consumer<AppProvider>(
+        builder: (context, appProvider, child) {
+          final students = appProvider.allStudents;
+          final groups = appProvider.groups;
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: groups.length,
+            itemBuilder: (context, index) {
+              final className = groups[index];
+              final studentCount = students.where((s) => s.className == className).length;
+              
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.class_outlined, color: Colors.blue),
+                  ),
+                  title: Text(className, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('$studentCount 名学生'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        tooltip: '重命名',
+                        onPressed: () {
+                          _showRenameDialog(context, className, appProvider);
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        tooltip: '删除',
+                        onPressed: () {
+                          _showDeleteDialog(context, className, appProvider, studentCount);
+                        },
+                      ),
+                    ],
+                  ),
+                  onTap: () {
+                     _showRenameDialog(context, className, appProvider);
+                  },
                 ),
-                child: const Icon(Icons.class_outlined, color: Colors.blue),
-              ),
-              title: Text(className, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('$studentCount 名学生'),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    tooltip: '重命名',
-                    onPressed: () {
-                      _showRenameDialog(context, className, appProvider);
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    tooltip: '删除',
-                    onPressed: () {
-                      _showDeleteDialog(context, className, appProvider, studentCount);
-                    },
-                  ),
-                ],
-              ),
-              onTap: () {
-                 _showRenameDialog(context, className, appProvider);
-              },
-            ),
+              );
+            },
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showAddDialog(context, appProvider);
+      floatingActionButton: Builder(
+        builder: (context) {
+          final appProvider = Provider.of<AppProvider>(context, listen: false);
+          return FloatingActionButton(
+            onPressed: () {
+              _showAddDialog(context, appProvider);
+            },
+            child: const Icon(Icons.add),
+          );
         },
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -141,7 +149,7 @@ class ClassSettingsScreen extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('删除班级'),
-        content: Text('确定要删除班级 "$className" 吗？\n该班级的 $studentCount 名学生将被移动到默认班级。'),
+        content: Text('确定要删除班级 "$className" 吗？\n该班级的 $studentCount 名学生将被删除。\n此操作无法撤销。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

@@ -10,9 +10,9 @@ class NameSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appProvider = Provider.of<AppProvider>(context);
-    final students = selectedClass != null
-        ? appProvider.allStudents.where((s) => s.className == selectedClass).toList()
-        : appProvider.allStudents;
+    final students = selectedClass == null
+        ? appProvider.allStudents
+        : appProvider.allStudents.where((s) => s.className == selectedClass).toList();
 
     return Scaffold(
       appBar: AppBar(title: Text('设置姓名 ${selectedClass != null ? "($selectedClass)" : ""}')),

@@ -8,38 +8,41 @@ class GenderSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appProvider = Provider.of<AppProvider>(context);
-    final students = selectedClass != null
-        ? appProvider.allStudents.where((s) => s.className == selectedClass).toList()
-        : appProvider.allStudents;
-
     return Scaffold(
       appBar: AppBar(title: Text('设置性别 ${selectedClass != null ? "($selectedClass)" : ""}')),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: students.length,
-        itemBuilder: (context, index) {
-          final student = students[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ListTile(
-              leading: CircleAvatar(child: Text('${student.id}')),
-              title: Text(student.name),
-              trailing: DropdownButton<String>(
-                value: student.gender,
-                items: ['男', '女', '未知'].map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
-                  if (newValue != null) {
-                    // TODO: Update gender
-                  }
-                },
-              ),
-            ),
+      body: Consumer<AppProvider>(
+        builder: (context, appProvider, child) {
+          final students = selectedClass == null
+              ? appProvider.allStudents
+              : appProvider.allStudents.where((s) => s.className == selectedClass).toList();
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: students.length,
+            itemBuilder: (context, index) {
+              final student = students[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: CircleAvatar(child: Text('${student.id}')),
+                  title: Text(student.name),
+                  trailing: DropdownButton<String>(
+                    value: student.gender,
+                    items: ['男', '女', '未知'].map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                    onChanged: (newValue) {
+                      if (newValue != null) {
+                        appProvider.updateStudentGender(student.id, newValue);
+                      }
+                    },
+                  ),
+                ),
+              );
+            },
           );
         },
       ),

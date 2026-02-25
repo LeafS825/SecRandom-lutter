@@ -234,6 +234,10 @@ class AppProvider with ChangeNotifier {
     if (!_groups.contains(className)) {
       _groups.add(className);
       _groups.sort();
+      // Initialize class groups if not exists
+      if (!_classGroups.containsKey(className)) {
+        _classGroups[className] = ['1']; // Default group
+      }
       await _saveConfig();
       notifyListeners();
     }
@@ -298,34 +302,16 @@ class AppProvider with ChangeNotifier {
       _groups.add('1');
     }
 
-    // 3. 将该班级的学生移动到第一个可用班级
-    final targetGroup = _groups.first;
-    bool studentsChanged = false;
-    
-    final List<Student> updatedStudents = [];
-    for (var s in _allStudents) {
-      if (s.className == className) {
-        updatedStudents.add(Student(
-          id: s.id,
-          name: s.name,
-          gender: s.gender,
-          group: s.group,
-          className: targetGroup, // Move to new class
-          exist: s.exist,
-        ));
-        studentsChanged = true;
-      } else {
-        updatedStudents.add(s);
-      }
-    }
+    // 3. 直接删除该班级的所有学生
+    _allStudents.removeWhere((s) => s.className == className);
+    await _dataService.saveStudents(_allStudents);
+    _resetRemaining();
 
-    if (studentsChanged) {
-      _allStudents = updatedStudents;
-      await _dataService.saveStudents(_allStudents);
-      _resetRemaining();
-    }
+    // 4. 删除该班级的小组配置
+    _classGroups.remove(className);
+    await _saveConfig();
 
-    // 4. 如果当前选中的班级是被删除的班级，重置为全部或第一个
+    // 5. 如果当前选中的班级是被删除的班级，重置为全部或第一个
     if (_selectedClass == className) {
       _selectedClass = null; // 或者 _groups.first
     }
@@ -429,7 +415,7 @@ class AppProvider with ChangeNotifier {
   }
 
   Future<void> updateStudentName(int id, String newName) async {
-    final index = _allStudents.indexWhere((s) => s.id == id);
+    final index = _allStudents.indexWhere((s) => s.id == id && s.className == _selectedClass);
     if (index != -1) {
       final old = _allStudents[index];
       _allStudents[index] = Student(
@@ -447,7 +433,7 @@ class AppProvider with ChangeNotifier {
 
   Future<void> updateStudentGroup(int id, String newGroup) async {
     // This updates the 'group' field, not the class
-    final index = _allStudents.indexWhere((s) => s.id == id);
+    final index = _allStudents.indexWhere((s) => s.id == id && s.className == _selectedClass);
     if (index != -1) {
       final old = _allStudents[index];
       _allStudents[index] = Student(
@@ -463,13 +449,30 @@ class AppProvider with ChangeNotifier {
     }
   }
 
+  Future<void> updateStudentGender(int id, String newGender) async {
+    final index = _allStudents.indexWhere((s) => s.id == id && s.className == _selectedClass);
+    if (index != -1) {
+      final old = _allStudents[index];
+      _allStudents[index] = Student(
+        id: old.id,
+        name: old.name,
+        gender: newGender,
+        group: old.group,
+        className: old.className,
+        exist: old.exist,
+      );
+      await _dataService.saveStudents(_allStudents);
+      notifyListeners();
+    }
+  }
+
   Future<void> deleteStudent(int id) async {
     // 软删除：设置 exist 为 false，或者直接物理删除？
     // 考虑到用户明确说“删除”，且 JSON 结构有 exist 字段，我们可以选择软删除或物理删除。
     // 如果物理删除，ID 可能会有空缺。如果软删除，exist=false。
-    // 为了符合一般用户习惯“删除”即消失，我们这里做物理删除，或者 exist=false 并不再显示。
+    // 为了符合一般用户习惯"删除"即消失，我们这里做物理删除，或者 exist=false 并不再显示。
     // 这里我们使用物理删除，简单直接。
-    _allStudents.removeWhere((s) => s.id == id);
+    _allStudents.removeWhere((s) => s.id == id && s.className == _selectedClass);
     await _dataService.saveStudents(_allStudents);
     _resetRemaining();
     notifyListeners();

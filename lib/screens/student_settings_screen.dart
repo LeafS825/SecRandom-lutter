@@ -15,15 +15,34 @@ class StudentSettingsScreen extends StatefulWidget {
 }
 
 class _StudentSettingsScreenState extends State<StudentSettingsScreen> {
-  String _selectedClass = '1';
+  String? _selectedClass;
+
+  @override
+  void initState() {
+    super.initState();
+    // 在 initState 中初始化 selectedClass
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final appProvider = Provider.of<AppProvider>(context, listen: false);
+        setState(() {
+          _selectedClass = appProvider.selectedClass;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final appProvider = Provider.of<AppProvider>(context);
-    
+
+    // 如果 selectedClass 为 null，使用 appProvider 的值
+    _selectedClass ??= appProvider.selectedClass;
+
     final List<String> classOptions = appProvider.groups;
-    if (!classOptions.contains(_selectedClass) && classOptions.isNotEmpty) {
-      _selectedClass = classOptions.first;
+    if (_selectedClass == null || !classOptions.contains(_selectedClass)) {
+      if (classOptions.isNotEmpty) {
+        _selectedClass = classOptions.first;
+      }
     }
 
     return Scaffold(
@@ -45,7 +64,7 @@ class _StudentSettingsScreenState extends State<StudentSettingsScreen> {
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
-            
+
             Card(
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -67,7 +86,7 @@ class _StudentSettingsScreenState extends State<StudentSettingsScreen> {
                       );
                     },
                   ),
-                  
+
                   const Divider(height: 1, indent: 16, endIndent: 16),
 
                   // 选择班级
@@ -93,7 +112,11 @@ class _StudentSettingsScreenState extends State<StudentSettingsScreen> {
                           }).toList(),
                           onChanged: (newValue) {
                             if (newValue != null) {
-                              setState(() => _selectedClass = newValue);
+                              setState(() {
+                                _selectedClass = newValue;
+                              });
+                              final appProvider = Provider.of<AppProvider>(context, listen: false);
+                              appProvider.setSelectedClass(newValue);
                             }
                           },
                         ),

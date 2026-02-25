@@ -9,12 +9,6 @@ class GroupSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appProvider = Provider.of<AppProvider>(context);
-    final groups = appProvider.getGroupsForClass(selectedClass);
-    final students = selectedClass != null
-        ? appProvider.allStudents.where((s) => s.className == selectedClass).toList()
-        : appProvider.allStudents;
-
     if (selectedClass == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('设置小组')),
@@ -40,59 +34,75 @@ class GroupSettingsScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: groups.isEmpty
-          ? const Center(child: Text('暂无小组，请添加'))
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: groups.length,
-              itemBuilder: (context, index) {
-                final groupName = groups[index];
-                final studentCount = students.where((s) => s.group == groupName).length;
+      body: Consumer<AppProvider>(
+        builder: (context, appProvider, child) {
+          final groups = appProvider.getGroupsForClass(selectedClass);
+          final students = selectedClass == null
+              ? appProvider.allStudents
+              : appProvider.allStudents.where((s) => s.className == selectedClass).toList();
 
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.purple.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.group_work, color: Colors.purple),
+          if (groups.isEmpty) {
+            return const Center(child: Text('暂无小组，请添加'));
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: groups.length,
+            itemBuilder: (context, index) {
+              final groupName = groups[index];
+              final studentCount = students.where((s) => s.group == groupName).length;
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    title: Text(groupName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('$studentCount 名学生'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          tooltip: '重命名',
-                          onPressed: () {
-                            _showRenameDialog(context, groupName, appProvider);
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          tooltip: '删除',
-                          onPressed: () {
-                            _showDeleteDialog(context, groupName, appProvider, studentCount);
-                          },
-                        ),
-                      ],
-                    ),
-                    onTap: () {
-                       _showRenameDialog(context, groupName, appProvider);
-                    },
+                    child: const Icon(Icons.group_work, color: Colors.purple),
                   ),
-                );
-              },
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showAddDialog(context, appProvider);
+                  title: Text(groupName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('$studentCount 名学生'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        tooltip: '重命名',
+                        onPressed: () {
+                          _showRenameDialog(context, groupName, appProvider);
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        tooltip: '删除',
+                        onPressed: () {
+                          _showDeleteDialog(context, groupName, appProvider, studentCount);
+                        },
+                      ),
+                    ],
+                  ),
+                  onTap: () {
+                     _showRenameDialog(context, groupName, appProvider);
+                  },
+                ),
+              );
+            },
+          );
         },
-        child: const Icon(Icons.add),
+      ),
+      floatingActionButton: Builder(
+        builder: (context) {
+          final appProvider = Provider.of<AppProvider>(context, listen: false);
+          return FloatingActionButton(
+            onPressed: () {
+              _showAddDialog(context, appProvider);
+            },
+            child: const Icon(Icons.add),
+          );
+        },
       ),
     );
   }
