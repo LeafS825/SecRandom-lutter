@@ -14,7 +14,7 @@ on:
         type: string
 
 env:
-  FLUTTER_VERSION: '3.24.0'
+  FLUTTER_VERSION: '3.41.2'
 
 jobs:
   analyze:
@@ -256,24 +256,3 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  notify:
-    name: Notify Build Status
-    needs: [analyze, test, build-web, build-android, build-windows, build-linux, build-macos]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Send notification
-        run: |
-          if [ "${{ needs.analyze.result }}" == "failure" ] || \
-             [ "${{ needs.test.result }}" == "failure" ] || \
-             [ "${{ needs.build-web.result }}" == "failure" ] || \
-             [ "${{ needs.build-android.result }}" == "failure" ] || \
-             [ "${{ needs.build-windows.result }}" == "failure" ] || \
-             [ "${{ needs.build-linux.result }}" == "failure" ] || \
-             [ "${{ needs.build-macos.result }}" == "failure" ]; then
-            echo "Build failed for one or more jobs"
-            exit 1
-          else
-            echo "All builds completed successfully"
-          fi
