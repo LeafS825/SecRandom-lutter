@@ -151,7 +151,11 @@ class DataService {
           return initialData;
         }
         final String data = await file.readAsString();
-        if (data.isEmpty) return [];
+        if (data.isEmpty) {
+          final initialData = _getInitialStudents();
+          await saveStudents(initialData);
+          return initialData;
+        }
         
         final Map<String, dynamic> jsonMap = json.decode(data);
         final List<Student> allStudents = [];
@@ -177,6 +181,12 @@ class DataService {
             }
           }
         });
+        
+        if (allStudents.isEmpty) {
+          final initialData = _getInitialStudents();
+          await saveStudents(initialData);
+          return initialData;
+        }
         
         return allStudents;
       } else {
@@ -211,6 +221,12 @@ class DataService {
             }
           }
         });
+        
+        if (allStudents.isEmpty) {
+          final initialData = _getInitialStudents();
+          await saveStudents(initialData);
+          return initialData;
+        }
         
         return allStudents;
       }
