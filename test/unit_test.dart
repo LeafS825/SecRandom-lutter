@@ -62,6 +62,14 @@ void main() {
         }
       } catch (e) {
       }
+      try {
+        final currentDir = Directory.current;
+        final dataDir = Directory(path.join(currentDir.path, 'data'));
+        if (await dataDir.exists()) {
+          await dataDir.delete(recursive: true);
+        }
+      } catch (e) {
+      }
     });
 
     test('loadStudents returns initial data when empty', () async {
