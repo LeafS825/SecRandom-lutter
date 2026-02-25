@@ -19,22 +19,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final allStudents = appProvider.allStudents;
     final history = appProvider.history;
 
-    // 获取所有唯一的班级/组别
-    final Set<String> groups = allStudents.map((s) => s.group).toSet();
-    final List<String> classOptions = groups.toList()..sort();
+    // 获取所有唯一的班级名称
+    final Set<String> classNames = allStudents.map((s) => s.className).toSet();
+    final List<String> classOptions = classNames.toList()..sort();
     if (!classOptions.contains(_selectedClass) && classOptions.isNotEmpty) {
       _selectedClass = classOptions.first;
     }
 
     // 过滤当前选中班级的学生
-    final filteredStudents = allStudents.where((s) => s.group == _selectedClass).toList();
+    final filteredStudents = allStudents.where((s) => s.className == _selectedClass).toList();
 
-    // 计算点名次数
-    // 注意：历史记录中的 name 可能是逗号分隔的字符串
+    // 过滤当前选中班级的历史记录
+    final filteredHistory = history.where((h) => h.className == _selectedClass).toList();
+
+    // 计算点名次数（只统计当前班级的历史记录）
     final Map<String, int> callCounts = {};
-    for (var record in history) {
-      // 简单匹配：如果名字出现在记录中，则计数+1
-      // 更严谨的做法是 split(',') 然后 trim()
+    for (var record in filteredHistory) {
       final names = record.name.split(',').map((e) => e.trim()).toList();
       for (var name in names) {
         callCounts[name] = (callCounts[name] ?? 0) + 1;

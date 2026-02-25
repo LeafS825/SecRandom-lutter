@@ -27,20 +27,21 @@ class _NameDisplayState extends State<NameDisplay> {
 
   void _startRollingAnimation(AppProvider provider) {
     if (_timer != null && _timer!.isActive) return;
-    
+
     _timer = Timer.periodic(const Duration(milliseconds: 80), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
       }
-      
-      final all = provider.allStudents;
-      if (all.isEmpty) return;
+
+      // 使用筛选后的学生列表，而不是所有学生
+      final filtered = provider.filteredStudents;
+      if (filtered.isEmpty) return;
 
       setState(() {
         _displayedStudents = List.generate(
-          provider.selectCount, 
-          (_) => all[_random.nextInt(all.length)]
+          provider.selectCount,
+          (_) => filtered[_random.nextInt(filtered.length)]
         );
       });
     });

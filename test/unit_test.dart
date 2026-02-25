@@ -70,13 +70,14 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final service = DataService();
       final record = HistoryRecord(
-        id: 1, 
-        name: 'Record 1', 
-        drawMethod: 1, 
-        drawTime: '2023-01-01', 
-        drawPeopleNumbers: 1, 
-        drawGroup: 'All', 
-        drawGender: 'All'
+        id: 1,
+        name: 'Record 1',
+        drawMethod: 1,
+        drawTime: '2023-01-01',
+        drawPeopleNumbers: 1,
+        drawGroup: 'All',
+        drawGender: 'All',
+        className: '1',
       );
       await service.saveHistory([record]);
       

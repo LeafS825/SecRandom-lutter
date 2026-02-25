@@ -14,7 +14,7 @@ class ControlPanel extends StatelessWidget {
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 800;
         final isHeightConstrained = screenHeight < 400;
-        
+
         return Card(
           elevation: 4,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isCompact ? 12 : 16)),
@@ -43,7 +43,50 @@ class ControlPanel extends StatelessWidget {
     }
   }
 
+  // 构建班级下拉选项
+  List<DropdownMenuItem<String>> _buildClassItems(AppProvider appProvider) {
+    final items = <DropdownMenuItem<String>>[];
+    for (final className in appProvider.groups) {
+      items.add(DropdownMenuItem(value: className, child: Text(className)));
+    }
+    return items;
+  }
+
+  // 构建小组下拉选项
+  List<DropdownMenuItem<String>> _buildGroupItems(AppProvider appProvider) {
+    final items = <DropdownMenuItem<String>>[
+      const DropdownMenuItem(value: null, child: Text('所有小组')),
+    ];
+    if (appProvider.selectedClass != null) {
+      final groups = appProvider.getGroupsForClass(appProvider.selectedClass);
+      for (final group in groups) {
+        items.add(DropdownMenuItem(value: group, child: Text(group)));
+      }
+    } else {
+      // 如果没有选择班级，显示所有小组
+      final allGroups = <String>{};
+      for (final className in appProvider.groups) {
+        allGroups.addAll(appProvider.getGroupsForClass(className));
+      }
+      for (final group in allGroups.toList()..sort()) {
+        items.add(DropdownMenuItem(value: group, child: Text(group)));
+      }
+    }
+    return items;
+  }
+
+  // 构建性别下拉选项
+  List<DropdownMenuItem<String>> _buildGenderItems() {
+    return const [
+      DropdownMenuItem(value: null, child: Text('所有性别')),
+      DropdownMenuItem(value: '男', child: Text('男')),
+      DropdownMenuItem(value: '女', child: Text('女')),
+    ];
+  }
+
   Widget _buildNormalLayout(BuildContext context, AppProvider appProvider) {
+    final maxCount = appProvider.totalCount;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -53,7 +96,7 @@ class ControlPanel extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             IconButton.filledTonal(
-              onPressed: () => appProvider.setSelectCount(appProvider.selectCount - 1),
+              onPressed: appProvider.selectCount > 1 ? () => appProvider.setSelectCount(appProvider.selectCount - 1) : null,
               icon: const Icon(Icons.remove),
             ),
             Container(
@@ -68,13 +111,13 @@ class ControlPanel extends StatelessWidget {
               ),
             ),
             IconButton.filledTonal(
-              onPressed: () => appProvider.setSelectCount(appProvider.selectCount + 1),
+              onPressed: appProvider.selectCount < maxCount ? () => appProvider.setSelectCount(appProvider.selectCount + 1) : null,
               icon: const Icon(Icons.add),
             ),
           ],
         ),
         const SizedBox(height: 20),
-        
+
         // 开始按钮
         SizedBox(
           height: 56,
@@ -103,45 +146,40 @@ class ControlPanel extends StatelessWidget {
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           ),
-          items: [
-            const DropdownMenuItem(value: null, child: Text('所有班级')),
-            const DropdownMenuItem(value: 'Class 1', child: Text('班级 1')),
-            const DropdownMenuItem(value: 'Class 2', child: Text('班级 2')),
-          ],
+          items: _buildClassItems(appProvider),
           onChanged: (value) => appProvider.setSelectedClass(value),
         ),
         const SizedBox(height: 16),
 
-        // 其他筛选器占位符
+        // 小组筛选
         DropdownButtonFormField<String>(
-          value: 'All Students',
+          value: appProvider.selectedGroup,
           decoration: InputDecoration(
+            labelText: '小组',
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           ),
-          items: const [
-            DropdownMenuItem(value: 'All Students', child: Text('所有学生')),
-          ],
-          onChanged: (value) {},
+          items: _buildGroupItems(appProvider),
+          onChanged: (value) => appProvider.setSelectedGroup(value),
         ),
         const SizedBox(height: 16),
 
+        // 性别筛选
         DropdownButtonFormField<String>(
-          value: 'All Genders',
+          value: appProvider.selectedGender,
           decoration: InputDecoration(
+            labelText: '性别',
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           ),
-          items: const [
-            DropdownMenuItem(value: 'All Genders', child: Text('所有性别')),
-          ],
-          onChanged: (value) {},
+          items: _buildGenderItems(),
+          onChanged: (value) => appProvider.setSelectedGender(value),
         ),
-        
+
         // 状态文本
         const SizedBox(height: 20),
         const Divider(),
@@ -158,6 +196,8 @@ class ControlPanel extends StatelessWidget {
   }
 
   Widget _buildCompactLayout(BuildContext context, AppProvider appProvider) {
+    final maxCount = appProvider.totalCount;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -167,7 +207,7 @@ class ControlPanel extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             IconButton.filledTonal(
-              onPressed: () => appProvider.setSelectCount(appProvider.selectCount - 1),
+              onPressed: appProvider.selectCount > 1 ? () => appProvider.setSelectCount(appProvider.selectCount - 1) : null,
               icon: const Icon(Icons.remove, size: 20),
               padding: const EdgeInsets.all(6),
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -184,7 +224,7 @@ class ControlPanel extends StatelessWidget {
               ),
             ),
             IconButton.filledTonal(
-              onPressed: () => appProvider.setSelectCount(appProvider.selectCount + 1),
+              onPressed: appProvider.selectCount < maxCount ? () => appProvider.setSelectCount(appProvider.selectCount + 1) : null,
               icon: const Icon(Icons.add, size: 20),
               padding: const EdgeInsets.all(6),
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -192,7 +232,7 @@ class ControlPanel extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        
+
         // 开始按钮
         SizedBox(
           height: 44,
@@ -222,11 +262,15 @@ class ControlPanel extends StatelessWidget {
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             isDense: true,
           ),
-          items: [
-            const DropdownMenuItem(value: null, child: Text('所有班级', style: TextStyle(fontSize: 13))),
-            const DropdownMenuItem(value: 'Class 1', child: Text('班级 1', style: TextStyle(fontSize: 13))),
-            const DropdownMenuItem(value: 'Class 2', child: Text('班级 2', style: TextStyle(fontSize: 13))),
-          ],
+          items: _buildClassItems(appProvider).map((item) {
+            return DropdownMenuItem<String>(
+              value: item.value,
+              child: Text(
+                (item.child as Text).data!,
+                style: const TextStyle(fontSize: 13),
+              ),
+            );
+          }).toList(),
           onChanged: (value) => appProvider.setSelectedClass(value),
         ),
         const SizedBox(height: 12),
@@ -237,7 +281,7 @@ class ControlPanel extends StatelessWidget {
             // 小组选择
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: 'All Students',
+                value: appProvider.selectedGroup,
                 decoration: InputDecoration(
                   labelText: '小组',
                   border: OutlineInputBorder(
@@ -247,18 +291,24 @@ class ControlPanel extends StatelessWidget {
                   isDense: true,
                   labelStyle: const TextStyle(fontSize: 12),
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'All Students', child: Text('所有学生', style: TextStyle(fontSize: 12))),
-                ],
-                onChanged: (value) {},
+                items: _buildGroupItems(appProvider).map((item) {
+                  return DropdownMenuItem<String>(
+                    value: item.value,
+                    child: Text(
+                      (item.child as Text).data!,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) => appProvider.setSelectedGroup(value),
               ),
             ),
             const SizedBox(width: 8),
-            
+
             // 性别选择
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: 'All Genders',
+                value: appProvider.selectedGender,
                 decoration: InputDecoration(
                   labelText: '性别',
                   border: OutlineInputBorder(
@@ -268,17 +318,21 @@ class ControlPanel extends StatelessWidget {
                   isDense: true,
                   labelStyle: const TextStyle(fontSize: 12),
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'All Genders', child: Text('所有性别', style: TextStyle(fontSize: 12))),
-                  DropdownMenuItem(value: 'Male', child: Text('男', style: TextStyle(fontSize: 12))),
-                  DropdownMenuItem(value: 'Female', child: Text('女', style: TextStyle(fontSize: 12))),
-                ],
-                onChanged: (value) {},
+                items: _buildGenderItems().map((item) {
+                  return DropdownMenuItem<String>(
+                    value: item.value,
+                    child: Text(
+                      (item.child as Text).data!,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) => appProvider.setSelectedGender(value),
               ),
             ),
           ],
         ),
-        
+
         // 状态文本
         const SizedBox(height: 12),
         const Divider(),
@@ -295,6 +349,8 @@ class ControlPanel extends StatelessWidget {
   }
 
   Widget _buildUltraCompactLayout(BuildContext context, AppProvider appProvider) {
+    final maxCount = appProvider.totalCount;
+
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Column(
@@ -307,7 +363,7 @@ class ControlPanel extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               IconButton.filledTonal(
-                onPressed: () => appProvider.setSelectCount(appProvider.selectCount - 1),
+                onPressed: appProvider.selectCount > 1 ? () => appProvider.setSelectCount(appProvider.selectCount - 1) : null,
                 icon: const Icon(Icons.remove, size: 16),
                 padding: const EdgeInsets.all(4),
                 constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
@@ -324,14 +380,14 @@ class ControlPanel extends StatelessWidget {
                 ),
               ),
               IconButton.filledTonal(
-                onPressed: () => appProvider.setSelectCount(appProvider.selectCount + 1),
+                onPressed: appProvider.selectCount < maxCount ? () => appProvider.setSelectCount(appProvider.selectCount + 1) : null,
                 icon: const Icon(Icons.add, size: 16),
                 padding: const EdgeInsets.all(4),
                 constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
               ),
             ],
           ),
-          
+
           // 开始按钮
           SizedBox(
             height: 32,
@@ -361,11 +417,15 @@ class ControlPanel extends StatelessWidget {
               isDense: true,
               labelStyle: const TextStyle(fontSize: 11),
             ),
-            items: [
-              const DropdownMenuItem(value: null, child: Text('所有班级', style: TextStyle(fontSize: 11))),
-              const DropdownMenuItem(value: 'Class 1', child: Text('班级 1', style: TextStyle(fontSize: 11))),
-              const DropdownMenuItem(value: 'Class 2', child: Text('班级 2', style: TextStyle(fontSize: 11))),
-            ],
+            items: _buildClassItems(appProvider).map((item) {
+              return DropdownMenuItem<String>(
+                value: item.value,
+                child: Text(
+                  (item.child as Text).data!,
+                  style: const TextStyle(fontSize: 11),
+                ),
+              );
+            }).toList(),
             onChanged: (value) => appProvider.setSelectedClass(value),
           ),
 
@@ -375,7 +435,7 @@ class ControlPanel extends StatelessWidget {
               // 小组选择
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: 'All Students',
+                  value: appProvider.selectedGroup,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(4),
@@ -384,18 +444,24 @@ class ControlPanel extends StatelessWidget {
                     isDense: true,
                     labelStyle: const TextStyle(fontSize: 10),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'All Students', child: Text('所有学生', style: TextStyle(fontSize: 10))),
-                  ],
-                  onChanged: (value) {},
+                  items: _buildGroupItems(appProvider).map((item) {
+                    return DropdownMenuItem<String>(
+                      value: item.value,
+                      child: Text(
+                        (item.child as Text).data!,
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) => appProvider.setSelectedGroup(value),
                 ),
               ),
               const SizedBox(width: 6),
-              
+
               // 性别选择
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: 'All Genders',
+                  value: appProvider.selectedGender,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(4),
@@ -404,17 +470,21 @@ class ControlPanel extends StatelessWidget {
                     isDense: true,
                     labelStyle: const TextStyle(fontSize: 10),
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'All Genders', child: Text('所有性别', style: TextStyle(fontSize: 10))),
-                    DropdownMenuItem(value: 'Male', child: Text('男', style: TextStyle(fontSize: 10))),
-                    DropdownMenuItem(value: 'Female', child: Text('女', style: TextStyle(fontSize: 10))),
-                  ],
-                  onChanged: (value) {},
+                  items: _buildGenderItems().map((item) {
+                    return DropdownMenuItem<String>(
+                      value: item.value,
+                      child: Text(
+                        (item.child as Text).data!,
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) => appProvider.setSelectedGender(value),
                 ),
               ),
             ],
           ),
-          
+
           // 状态文本
           Text(
             '${appProvider.totalCount}/${appProvider.remainingCount}',

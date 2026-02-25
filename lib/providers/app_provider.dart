@@ -15,12 +15,14 @@ class AppProvider with ChangeNotifier {
   List<HistoryRecord> _history = [];
   List<String> _groups = ['1'];
   Map<String, List<String>> _classGroups = {}; // ClassName -> List<GroupName>
-  
+
   bool _isRolling = false;
   ThemeMode _themeMode = ThemeMode.system; // 默认跟随系统
 
   int _selectCount = 1;
   String? _selectedClass; // Null 表示全部
+  String? _selectedGroup; // Null 表示全部小组
+  String? _selectedGender; // Null 表示全部性别
   
   // 获取器
   List<Student> get allStudents => _allStudents;
@@ -31,7 +33,12 @@ class AppProvider with ChangeNotifier {
   int get remainingCount => _remainingStudents.length;
   int get totalCount => _filteredStudents().length;
   String? get selectedClass => _selectedClass;
+  String? get selectedGroup => _selectedGroup;
+  String? get selectedGender => _selectedGender;
   List<HistoryRecord> get history => _history;
+
+  // 获取筛选后的学生列表（用于动画显示）
+  List<Student> get filteredStudents => _filteredStudents();
   List<String> get groups => _groups; // This is now class names
 
   // 构造函数
@@ -75,6 +82,11 @@ class AppProvider with ChangeNotifier {
     _classGroups.forEach((key, value) {
       value.sort();
     });
+
+    // 如果没有选择班级，默认选择第一个班级
+    if (_selectedClass == null && _groups.isNotEmpty) {
+      _selectedClass = _groups.first;
+    }
 
     _resetRemaining();
     notifyListeners();
@@ -329,13 +341,24 @@ class AppProvider with ChangeNotifier {
 
   List<Student> _filteredStudents() {
     // 过滤掉 exist 为 false 的学生
-    final activeStudents = _allStudents.where((s) => s.exist).toList();
-    
-    if (_selectedClass == null || _selectedClass == 'All') {
-      return activeStudents;
+    var filtered = _allStudents.where((s) => s.exist).toList();
+
+    // 按班级筛选
+    if (_selectedClass != null && _selectedClass != 'All') {
+      filtered = filtered.where((s) => s.className == _selectedClass).toList();
     }
-    // 使用 className 进行班级筛选
-    return activeStudents.where((s) => s.className == _selectedClass).toList();
+
+    // 按小组筛选
+    if (_selectedGroup != null && _selectedGroup != 'All') {
+      filtered = filtered.where((s) => s.group == _selectedGroup).toList();
+    }
+
+    // 按性别筛选
+    if (_selectedGender != null && _selectedGender != 'All') {
+      filtered = filtered.where((s) => s.gender == _selectedGender).toList();
+    }
+
+    return filtered;
   }
 
   void setThemeMode(ThemeMode mode) {
@@ -346,7 +369,8 @@ class AppProvider with ChangeNotifier {
 
   void setSelectCount(int count) {
     if (count < 1) count = 1;
-    if (count > 10) count = 10; 
+    final maxCount = _filteredStudents().length;
+    if (maxCount > 0 && count > maxCount) count = maxCount;
     _selectCount = count;
     _saveConfig();
     notifyListeners();
@@ -354,8 +378,23 @@ class AppProvider with ChangeNotifier {
 
   void setSelectedClass(String? className) {
     _selectedClass = className;
+    // 切换班级时，重置小组和性别筛选
+    _selectedGroup = null;
+    _selectedGender = null;
     _resetRemaining();
     _saveConfig();
+    notifyListeners();
+  }
+
+  void setSelectedGroup(String? groupName) {
+    _selectedGroup = groupName;
+    _resetRemaining();
+    notifyListeners();
+  }
+
+  void setSelectedGender(String? gender) {
+    _selectedGender = gender;
+    _resetRemaining();
     notifyListeners();
   }
 
@@ -367,10 +406,11 @@ class AppProvider with ChangeNotifier {
       await _saveConfig();
     }
 
-    // 简单的 ID 生成逻辑：最大 ID + 1
+    // ID 生成逻辑：在当前班级的学生中找最大 ID + 1，实现班级独立计数
     int newId = 1;
-    if (_allStudents.isNotEmpty) {
-      newId = _allStudents.map((s) => s.id).reduce((curr, next) => curr > next ? curr : next) + 1;
+    final classStudents = _allStudents.where((s) => s.className == className).toList();
+    if (classStudents.isNotEmpty) {
+      newId = classStudents.map((s) => s.id).reduce((curr, next) => curr > next ? curr : next) + 1;
     }
 
     final newStudent = Student(
@@ -465,11 +505,12 @@ class AppProvider with ChangeNotifier {
     final record = HistoryRecord(
       id: newId,
       name: nameStr,
-      drawMethod: 1, // 1 for Random
+      drawMethod: 1,
       drawTime: timeStr,
       drawPeopleNumbers: picked.length,
-      drawGroup: _selectedClass ?? '抽取全部学生',
-      drawGender: '抽取全部性别', 
+      drawGroup: _selectedGroup ?? '所有小组',
+      drawGender: _selectedGender ?? '所有性别',
+      className: _selectedClass ?? '1',
     );
 
     _history.insert(0, record);

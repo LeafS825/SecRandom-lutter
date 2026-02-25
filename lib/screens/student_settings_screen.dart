@@ -20,9 +20,7 @@ class _StudentSettingsScreenState extends State<StudentSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final appProvider = Provider.of<AppProvider>(context);
-    final allStudents = appProvider.allStudents;
     
-    // 获取所有唯一的班级/组别
     final List<String> classOptions = appProvider.groups;
     if (!classOptions.contains(_selectedClass) && classOptions.isNotEmpty) {
       _selectedClass = classOptions.first;

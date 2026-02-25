@@ -6,6 +6,7 @@ class HistoryRecord {
   final int drawPeopleNumbers;
   final String drawGroup;
   final String drawGender;
+  final String className;
 
   HistoryRecord({
     required this.id,
@@ -15,6 +16,7 @@ class HistoryRecord {
     required this.drawPeopleNumbers,
     required this.drawGroup,
     required this.drawGender,
+    required this.className,
   });
 
   Map<String, dynamic> toJson() {
@@ -26,6 +28,7 @@ class HistoryRecord {
       'draw_people_numbers': drawPeopleNumbers,
       'draw_group': drawGroup,
       'draw_gender': drawGender,
+      'class_name': className,
     };
   }
 
@@ -38,6 +41,7 @@ class HistoryRecord {
       drawPeopleNumbers: json['draw_people_numbers'] is int ? json['draw_people_numbers'] : int.tryParse(json['draw_people_numbers'].toString()) ?? 1,
       drawGroup: json['draw_group'] ?? '未知',
       drawGender: json['draw_gender'] ?? '未知',
+      className: json['class_name'] ?? '1',
     );
   }
 }
