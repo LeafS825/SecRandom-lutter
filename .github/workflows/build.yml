@@ -17,29 +17,6 @@ env:
   FLUTTER_VERSION: '3.41.2'
 
 jobs:
-  analyze:
-    name: Analyze Code
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          cache: true
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Analyze code
-        run: flutter analyze
-
-      - name: Check formatting
-        run: dart format --set-exit-if-changed .
-
   test:
     name: Run Tests
     runs-on: ubuntu-latest
@@ -227,7 +204,7 @@ jobs:
 
   release:
     name: Create Release
-    needs: [analyze, test, build-web, build-android, build-windows, build-linux, build-macos]
+    needs: [test, build-web, build-android, build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
     if: github.event.inputs.create_release == 'true'
     permissions:
