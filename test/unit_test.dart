@@ -47,8 +47,12 @@ void main() {
   });
 
   group('DataService Tests', () {
-    test('loadStudents returns initial data when empty', () async {
+    setUp(() async {
       SharedPreferences.setMockInitialValues({});
+      await SharedPreferences.getInstance().then((prefs) => prefs.clear());
+    });
+
+    test('loadStudents returns initial data when empty', () async {
       final service = DataService();
       final students = await service.loadStudents();
       expect(students.isNotEmpty, true);
@@ -56,7 +60,6 @@ void main() {
     });
 
     test('save and load students', () async {
-      SharedPreferences.setMockInitialValues({});
       final service = DataService();
       final newStudent = Student(id: 99, name: 'New Guy', gender: 'M', group: 'C1', exist: true);
       await service.saveStudents([newStudent]);
@@ -67,7 +70,6 @@ void main() {
     });
 
     test('save and load history', () async {
-      SharedPreferences.setMockInitialValues({});
       final service = DataService();
       final record = HistoryRecord(
         id: 1,
