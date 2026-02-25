@@ -190,16 +190,27 @@ jobs:
       - name: Build macOS
         run: flutter build macos --release
 
+      - name: List build output
+        run: |
+          echo "Build directory structure:"
+          find build/macos -name "*.app" -type d
+
       - name: Create DMG
         run: |
-          hdiutil create -volname "SecRandom" -srcfolder build/macos/Build/Products/Release/SecRandom.app -ov -format UDZO SecRandom.dmg
+          APP_PATH=$(find build/macos -name "*.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: No .app found"
+            exit 1
+          fi
+          echo "Creating DMG from: $APP_PATH"
+          hdiutil create -volname "SecRandom" -srcfolder "$APP_PATH" -ov -format UDZO SecRandom.dmg
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: macos-build
           path: |
-            build/macos/Build/Products/Release/SecRandom.app
+            build/macos/Build/Products/Release/*.app
             SecRandom.dmg
 
   release:
