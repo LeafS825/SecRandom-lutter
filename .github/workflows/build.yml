@@ -169,7 +169,18 @@ jobs:
       - name: Package Linux
         run: |
           cd build/linux/x64/release/bundle
-          dpkg-deb --build . --package secrandom-lutter --version 0.0.1 --maintainer "leafs825" --description "SecRandom Lutter - A Random Roll Call Application"
+          mkdir -p DEBIAN
+          cat > DEBIAN/control << 'EOF'
+          Package: secrandom-lutter
+          Version: 0.0.1
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Maintainer: leafs825
+          Description: SecRandom Lutter - A Random Roll Call Application
+          EOF
+          sed -i 's/^          //' DEBIAN/control
+          dpkg-deb --build . secrandom-lutter_0.0.1_amd64.deb
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
