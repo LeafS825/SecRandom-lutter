@@ -127,11 +127,16 @@ jobs:
       - name: Build Windows
         run: flutter build windows --release
 
+      - name: Package Windows
+        run: |
+          cd build/windows/x64/runner/Release
+          Compress-Archive -Path SecRandom_lutter.exe -DestinationPath SecRandom_lutter.zip
+
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: build/windows/x64/runner/Release
+          path: build/windows/x64/runner/Release/SecRandom_lutter.zip
 
   build-linux:
     name: Build Linux
@@ -161,11 +166,16 @@ jobs:
       - name: Build Linux
         run: flutter build linux --release
 
+      - name: Package Linux
+        run: |
+          cd build/linux/x64/release/bundle
+          dpkg-deb --build binary-dir=. --package secrandom-lutter --version 0.0.1 --maintainer "leafs825" --description "SecRandom Lutter - A Random Roll Call Application"
+
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-build
-          path: build/linux/x64/release/bundle
+          path: build/linux/x64/release/bundle/*.deb
 
   build-macos:
     name: Build macOS
@@ -235,8 +245,8 @@ jobs:
             artifacts/web-build/**
             artifacts/android-apk/app-release.apk
             artifacts/android-appbundle/app-release.aab
-            artifacts/windows-build/**
-            artifacts/linux-build/**
+            artifacts/windows-build/SecRandom_lutter.zip
+            artifacts/linux-build/*.deb
             artifacts/macos-build/SecRandom.app/**
             artifacts/macos-build/SecRandom.dmg
           draft: false
