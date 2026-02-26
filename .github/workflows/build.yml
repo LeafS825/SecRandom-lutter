@@ -12,9 +12,15 @@ on:
         description: 'Release tag (e.g., v1.0.0)'
         required: false
         type: string
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: false
+        default: '1.0.0'
+        type: string
 
 env:
   FLUTTER_VERSION: '3.41.2'
+  APP_VERSION: ${{ github.event.inputs.version || '1.0.0' }}
 
 jobs:
   test:
@@ -57,11 +63,16 @@ jobs:
       - name: Build web
         run: flutter build web --release
 
+      - name: Package web
+        run: |
+          cd build/web
+          zip -r ../SecRandom_lutter_${{ env.APP_VERSION }}_web.zip .
+
       - name: Upload web artifact
         uses: actions/upload-artifact@v4
         with:
           name: web-build
-          path: build/web
+          path: build/SecRandom_lutter_${{ env.APP_VERSION }}_web.zip
 
   build-android:
     name: Build Android
@@ -92,17 +103,23 @@ jobs:
       - name: Build App Bundle
         run: flutter build appbundle --release
 
+      - name: Rename APK
+        run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/SecRandom_lutter_${{ env.APP_VERSION }}_android.apk
+
+      - name: Rename App Bundle
+        run: mv build/app/outputs/bundle/release/app-release.aab build/app/outputs/bundle/release/SecRandom_lutter_${{ env.APP_VERSION }}_android.aab
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/SecRandom_lutter_${{ env.APP_VERSION }}_android.apk
 
       - name: Upload App Bundle artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-appbundle
-          path: build/app/outputs/bundle/release/app-release.aab
+          path: build/app/outputs/bundle/release/SecRandom_lutter_${{ env.APP_VERSION }}_android.aab
 
   build-windows:
     name: Build Windows
@@ -130,13 +147,13 @@ jobs:
       - name: Package Windows
         run: |
           cd build/windows/x64/runner/Release
-          Compress-Archive -Path SecRandom_lutter.exe -DestinationPath SecRandom_lutter.zip
+          Compress-Archive -Path SecRandom_lutter.exe -DestinationPath SecRandom_lutter_${{ env.APP_VERSION }}_windows.zip
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: build/windows/x64/runner/Release/SecRandom_lutter.zip
+          path: build/windows/x64/runner/Release/SecRandom_lutter_${{ env.APP_VERSION }}_windows.zip
 
   build-linux:
     name: Build Linux
@@ -172,7 +189,7 @@ jobs:
           mkdir -p pkg/DEBIAN
           cat > pkg/DEBIAN/control << 'EOF'
           Package: secrandom-lutter
-          Version: 0.0.1
+          Version: ${{ env.APP_VERSION }}
           Section: utils
           Priority: optional
           Architecture: amd64
@@ -181,13 +198,13 @@ jobs:
           EOF
           sed -i 's/^          //' pkg/DEBIAN/control
           cp -r bundle/* pkg/
-          dpkg-deb --build pkg secrandom-lutter_0.0.1_amd64.deb
+          dpkg-deb --build pkg SecRandom_lutter_${{ env.APP_VERSION }}_linux_amd64.deb
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-build
-          path: build/linux/x64/release/*.deb
+          path: build/linux/x64/release/SecRandom_lutter_${{ env.APP_VERSION }}_linux_amd64.deb
 
   build-macos:
     name: Build macOS
@@ -225,15 +242,22 @@ jobs:
             exit 1
           fi
           echo "Creating DMG from: $APP_PATH"
-          hdiutil create -volname "SecRandom" -srcfolder "$APP_PATH" -ov -format UDZO SecRandom.dmg
+          hdiutil create -volname "SecRandom" -srcfolder "$APP_PATH" -ov -format UDZO SecRandom_lutter_${{ env.APP_VERSION }}_macos.dmg
+
+      - name: Rename app
+        run: |
+          APP_PATH=$(find build/macos -name "*.app" -type d | head -1)
+          APP_DIR=$(dirname "$APP_PATH")
+          APP_NAME=$(basename "$APP_PATH")
+          mv "$APP_PATH" "$APP_DIR/SecRandom_lutter_${{ env.APP_VERSION }}_macos.app"
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: macos-build
           path: |
-            build/macos/Build/Products/Release/*.app
-            SecRandom.dmg
+            build/macos/Build/Products/Release/SecRandom_lutter_${{ env.APP_VERSION }}_macos.app
+            SecRandom_lutter_${{ env.APP_VERSION }}_macos.dmg
 
   release:
     name: Create Release
@@ -254,13 +278,13 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.release_tag }}
           files: |
-            artifacts/web-build/**
-            artifacts/android-apk/app-release.apk
-            artifacts/android-appbundle/app-release.aab
-            artifacts/windows-build/SecRandom_lutter.zip
-            artifacts/linux-build/*.deb
-            artifacts/macos-build/SecRandom.app/**
-            artifacts/macos-build/SecRandom.dmg
+            artifacts/web-build/SecRandom_lutter_*.zip
+            artifacts/android-apk/SecRandom_lutter_*.apk
+            artifacts/android-appbundle/SecRandom_lutter_*.aab
+            artifacts/windows-build/SecRandom_lutter_*.zip
+            artifacts/linux-build/SecRandom_lutter_*.deb
+            artifacts/macos-build/SecRandom_lutter_*.app/**
+            artifacts/macos-build/SecRandom_lutter_*.dmg
           draft: false
           prerelease: false
           generate_release_notes: true
