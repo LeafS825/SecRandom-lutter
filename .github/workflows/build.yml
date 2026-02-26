@@ -169,9 +169,7 @@ jobs:
       - name: Package Linux
         run: |
           cd build/linux/x64/release/bundle
-          dpkg-deb --build binary-dir=. --package secrandom-lutter --version 0.0.1 --maintainer "leafs825" --description "SecRandom Lutter - A Random Roll Call Application"
-
-      - name: Upload Linux artifact
+          dpkg-deb --build . --package secrandom-lutter --version 0.0.1 --maintainer "leafs825" --description "SecRandom Lutter - A Random Roll Call Application"
         uses: actions/upload-artifact@v4
         with:
           name: linux-build
