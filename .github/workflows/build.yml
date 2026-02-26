@@ -168,9 +168,9 @@ jobs:
 
       - name: Package Linux
         run: |
-          cd build/linux/x64/release/bundle
-          mkdir -p DEBIAN
-          cat > DEBIAN/control << 'EOF'
+          cd build/linux/x64/release
+          mkdir -p pkg/DEBIAN
+          cat > pkg/DEBIAN/control << 'EOF'
           Package: secrandom-lutter
           Version: 0.0.1
           Section: utils
@@ -179,14 +179,15 @@ jobs:
           Maintainer: leafs825
           Description: SecRandom Lutter - A Random Roll Call Application
           EOF
-          sed -i 's/^          //' DEBIAN/control
-          dpkg-deb --build . secrandom-lutter_0.0.1_amd64.deb
+          sed -i 's/^          //' pkg/DEBIAN/control
+          cp -r bundle/* pkg/
+          dpkg-deb --build pkg secrandom-lutter_0.0.1_amd64.deb
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-build
-          path: build/linux/x64/release/bundle/*.deb
+          path: build/linux/x64/release/*.deb
 
   build-macos:
     name: Build macOS
