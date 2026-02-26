@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/foundation.dart';
-import 'package:secrandom_lutter/models/student.dart';
-import 'package:secrandom_lutter/models/history_record.dart';
-import 'package:secrandom_lutter/services/random_service.dart';
-import 'package:secrandom_lutter/services/data_service.dart';
+import 'package:SecRandom_lutter/models/student.dart';
+import 'package:SecRandom_lutter/models/history_record.dart';
+import 'package:SecRandom_lutter/services/random_service.dart';
+import 'package:SecRandom_lutter/services/data_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;

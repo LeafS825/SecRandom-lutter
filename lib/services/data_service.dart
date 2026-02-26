@@ -274,14 +274,28 @@ class DataService {
     try {
       if (!_isWeb) {
         final file = await _getHistoryFile();
-        final Map<String, dynamic> dataMap = {
-          _rootKey: history.map((h) => h.toJson()).toList(),
-        };
+        final Map<String, dynamic> dataMap = {};
+        
+        for (var record in history) {
+          final className = record.className;
+          if (!dataMap.containsKey(className)) {
+            dataMap[className] = [];
+          }
+          (dataMap[className] as List).add(record.toJson());
+        }
+        
         await file.writeAsString(const JsonEncoder.withIndent('  ').convert(dataMap));
       } else {
-        final Map<String, dynamic> dataMap = {
-          _rootKey: history.map((h) => h.toJson()).toList(),
-        };
+        final Map<String, dynamic> dataMap = {};
+        
+        for (var record in history) {
+          final className = record.className;
+          if (!dataMap.containsKey(className)) {
+            dataMap[className] = [];
+          }
+          (dataMap[className] as List).add(record.toJson());
+        }
+        
         final String jsonData = const JsonEncoder.withIndent('  ').convert(dataMap);
         
         if (jsonData.length > 1000000) {
@@ -307,11 +321,21 @@ class DataService {
         if (data.isEmpty) return [];
         
         final Map<String, dynamic> jsonMap = json.decode(data);
+        final List<HistoryRecord> result = [];
+        
         if (jsonMap.containsKey(_rootKey)) {
           final List<dynamic> jsonList = jsonMap[_rootKey];
           return jsonList.map((json) => HistoryRecord.fromJson(json)).toList();
         }
-        return [];
+        
+        for (var className in jsonMap.keys) {
+          final List<dynamic> jsonList = jsonMap[className];
+          for (var json in jsonList) {
+            result.add(HistoryRecord.fromJson(json, className: className));
+          }
+        }
+        
+        return result;
       } else {
         final String? jsonData = _getWebCookie(_historyFileName);
         if (jsonData == null || jsonData.isEmpty) {
@@ -319,14 +343,80 @@ class DataService {
         }
         
         final Map<String, dynamic> jsonMap = json.decode(jsonData);
+        final List<HistoryRecord> result = [];
+        
         if (jsonMap.containsKey(_rootKey)) {
           final List<dynamic> jsonList = jsonMap[_rootKey];
           return jsonList.map((json) => HistoryRecord.fromJson(json)).toList();
         }
-        return [];
+        
+        for (var className in jsonMap.keys) {
+          final List<dynamic> jsonList = jsonMap[className];
+          for (var json in jsonList) {
+            result.add(HistoryRecord.fromJson(json, className: className));
+          }
+        }
+        
+        return result;
       }
     } catch (e) {
       return [];
+    }
+  }
+
+  Future<void> addHistoryRecord(HistoryRecord record) async {
+    try {
+      if (!_isWeb) {
+        final file = await _getHistoryFile();
+        Map<String, dynamic> dataMap = {};
+        
+        if (await file.exists()) {
+          final String data = await file.readAsString();
+          if (data.isNotEmpty) {
+            try {
+              dataMap = json.decode(data) as Map<String, dynamic>;
+            } catch (e) {
+              dataMap = {};
+            }
+          }
+        }
+        
+        final className = record.className;
+        if (!dataMap.containsKey(className)) {
+          dataMap[className] = [];
+        }
+        (dataMap[className] as List).add(record.toJson());
+        
+        await file.writeAsString(const JsonEncoder.withIndent('  ').convert(dataMap));
+      } else {
+        Map<String, dynamic> dataMap = {};
+        
+        final String? existingData = _getWebCookie(_historyFileName);
+        if (existingData != null && existingData.isNotEmpty) {
+          try {
+            dataMap = json.decode(existingData) as Map<String, dynamic>;
+          } catch (e) {
+            dataMap = {};
+          }
+        }
+        
+        final className = record.className;
+        if (!dataMap.containsKey(className)) {
+          dataMap[className] = [];
+        }
+        (dataMap[className] as List).add(record.toJson());
+        
+        final String jsonData = const JsonEncoder.withIndent('  ').convert(dataMap);
+        
+        if (jsonData.length > 1000000) {
+          print('Warning: History data is large (${jsonData.length} chars), may cause performance issues');
+        }
+        
+        _setWebCookie(_historyFileName, jsonData);
+      }
+    } catch (e) {
+      print('Error adding history record: $e');
+      rethrow;
     }
   }
 

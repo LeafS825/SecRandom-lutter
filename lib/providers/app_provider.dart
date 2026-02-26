@@ -519,7 +519,7 @@ class AppProvider with ChangeNotifier {
     _history.insert(0, record);
     if (_history.length > 50) _history.removeLast(); 
     
-    await _dataService.saveHistory(_history);
+    await _dataService.addHistoryRecord(record);
 
     _isRolling = false;
     notifyListeners();
