@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universal_html/html.dart' as html;
 import '../models/student.dart';
 import '../models/history_record.dart';
@@ -16,7 +15,6 @@ class DataService {
   static const String _configFileName = 'config.json';
   static const String _rootKey = 'class_name';
   static const String _configRootKey = 'config';
-  static const String _cookiePrefix = 'secrandom_';
 
   static bool get _isWeb => kIsWeb;
 
@@ -46,26 +44,24 @@ class DataService {
     }
   }
 
-  void _setWebCookie(String key, String value) {
+  void _setWebStorage(String key, String value) {
     if (_isWeb) {
-      final cookieName = '$_cookiePrefix$key';
-      final cookieValue = Uri.encodeComponent(value);
-      final expires = DateTime.now().add(const Duration(days: 365)).toUtc().toIso8601String();
-      
-      html.document.cookie = '$cookieName=$cookieValue; expires=$expires; path=/';
+      try {
+        html.window.localStorage[key] = value;
+      } catch (e) {
+        print('Error saving to localStorage: $e');
+      }
     }
   }
 
-  String? _getWebCookie(String key) {
+  String? _getWebStorage(String key) {
     if (_isWeb) {
-      final cookies = html.document.cookie;
-      if (cookies == null || cookies.isEmpty) {
+      try {
+        return html.window.localStorage[key];
+      } catch (e) {
+        print('Error reading from localStorage: $e');
         return null;
       }
-      final cookieName = '$_cookiePrefix$key';
-      final regex = RegExp('$cookieName=([^;]*)');
-      final match = regex.firstMatch(cookies);
-      return match?.group(1);
     }
     return null;
   }
@@ -133,7 +129,7 @@ class DataService {
           print('Warning: Students data is large (${jsonData.length} chars), may cause performance issues');
         }
         
-        _setWebCookie(_studentsFileName, jsonData);
+        _setWebStorage(_studentsFileName, jsonData);
       }
     } catch (e) {
       print('Error saving students: $e');
@@ -190,7 +186,7 @@ class DataService {
         
         return allStudents;
       } else {
-        final String? jsonData = _getWebCookie(_studentsFileName);
+        final String? jsonData = _getWebStorage(_studentsFileName);
         if (jsonData == null || jsonData.isEmpty) {
           final initialData = _getInitialStudents();
           await saveStudents(initialData);
@@ -253,7 +249,7 @@ class DataService {
         
         return jsonMap.keys.toList();
       } else {
-        final String? jsonData = _getWebCookie(_studentsFileName);
+        final String? jsonData = _getWebStorage(_studentsFileName);
         if (jsonData == null || jsonData.isEmpty) {
           return ['1'];
         }
@@ -302,7 +298,7 @@ class DataService {
           print('Warning: History data is large (${jsonData.length} chars), may cause performance issues');
         }
         
-        _setWebCookie(_historyFileName, jsonData);
+        _setWebStorage(_historyFileName, jsonData);
       }
     } catch (e) {
       print('Error saving history: $e');
@@ -337,7 +333,7 @@ class DataService {
         
         return result;
       } else {
-        final String? jsonData = _getWebCookie(_historyFileName);
+        final String? jsonData = _getWebStorage(_historyFileName);
         if (jsonData == null || jsonData.isEmpty) {
           return [];
         }
@@ -391,7 +387,7 @@ class DataService {
       } else {
         Map<String, dynamic> dataMap = {};
         
-        final String? existingData = _getWebCookie(_historyFileName);
+        final String? existingData = _getWebStorage(_historyFileName);
         if (existingData != null && existingData.isNotEmpty) {
           try {
             dataMap = json.decode(existingData) as Map<String, dynamic>;
@@ -412,7 +408,7 @@ class DataService {
           print('Warning: History data is large (${jsonData.length} chars), may cause performance issues');
         }
         
-        _setWebCookie(_historyFileName, jsonData);
+        _setWebStorage(_historyFileName, jsonData);
       }
     } catch (e) {
       print('Error adding history record: $e');
@@ -438,7 +434,7 @@ class DataService {
           print('Warning: Config data is large (${jsonData.length} chars), may cause performance issues');
         }
         
-        _setWebCookie(_configFileName, jsonData);
+        _setWebStorage(_configFileName, jsonData);
       }
     } catch (e) {
       print('Error saving config: $e');
@@ -465,7 +461,7 @@ class DataService {
 
         return AppConfig.defaultConfig();
       } else {
-        final String? jsonData = _getWebCookie(_configFileName);
+        final String? jsonData = _getWebStorage(_configFileName);
         if (jsonData == null || jsonData.isEmpty) {
           final defaultConfig = AppConfig.defaultConfig();
           await saveConfig(defaultConfig);
