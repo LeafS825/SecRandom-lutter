@@ -134,14 +134,14 @@ jobs:
 
       - name: Package Windows
         run: |
-          cd build/windows/x64/runner/Release
-          Compress-Archive -Path SecRandom_lutter.exe -DestinationPath SecRandom_lutter_${{ env.APP_VERSION }}_windows.zip
+          cd build/windows/x64/runner
+          Compress-Archive -Path Release/* -DestinationPath SecRandom_lutter_${{ env.APP_VERSION }}_windows.zip
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: build/windows/x64/runner/Release/SecRandom_lutter_${{ env.APP_VERSION }}_windows.zip
+          path: build/windows/x64/runner/SecRandom_lutter_${{ env.APP_VERSION }}_windows.zip
 
   build-linux:
     name: Build Linux
