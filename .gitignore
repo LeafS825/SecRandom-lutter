@@ -54,3 +54,5 @@ app.*.map.json
 .metadata
 .flutter-plugins
 .packages
+
+/SecRandom-2.3.2/
