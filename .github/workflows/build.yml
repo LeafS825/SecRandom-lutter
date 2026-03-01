@@ -135,7 +135,7 @@ jobs:
       - name: Test keystore with keytool
         run: |
           echo "Testing keystore with keytool..."
-          keytool -list -v -keystore android/app/release-keystore.jks -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" || exit 1
+          keytool -list -v -keystore android/app/release-keystore.jks -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" -storetype JKS || exit 1
 
       - name: Build APK
         run: flutter build apk --release

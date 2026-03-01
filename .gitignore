@@ -62,3 +62,4 @@ app.*.map.json
 *.jks
 key.properties
 upload-keystore-base64.txt
+*.backup
