@@ -110,6 +110,33 @@ jobs:
           storeFile=release-keystore.jks
           EOF
 
+      - name: Verify keystore file
+        run: |
+          echo "Checking keystore file..."
+          if [ -f "android/app/release-keystore.jks" ]; then
+            echo "Keystore file exists"
+            ls -lh android/app/release-keystore.jks
+          else
+            echo "ERROR: Keystore file not found!"
+            exit 1
+          fi
+
+      - name: Verify key.properties
+        run: |
+          echo "Checking key.properties file..."
+          if [ -f "android/app/key.properties" ]; then
+            echo "key.properties file exists"
+            cat android/app/key.properties
+          else
+            echo "ERROR: key.properties file not found!"
+            exit 1
+          fi
+
+      - name: Test keystore with keytool
+        run: |
+          echo "Testing keystore with keytool..."
+          keytool -list -v -keystore android/app/release-keystore.jks -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" || exit 1
+
       - name: Build APK
         run: flutter build apk --release
 
