@@ -97,6 +97,19 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/release-keystore.jks
+
+      - name: Create key.properties
+        run: |
+          cat > android/app/key.properties << EOF
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=release-keystore.jks
+          EOF
+
       - name: Build APK
         run: flutter build apk --release
 
@@ -153,7 +166,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libgtk-3-0 libglib2.0-0
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -230,13 +243,13 @@ jobs:
             exit 1
           fi
           echo "Creating DMG from: $APP_PATH"
-          hdiutil create -volname "SecRandom" -srcfolder "$APP_PATH" -ov -format UDZO SecRandom_lutter_${{ env.APP_VERSION }}_macos.dmg
+          APP_DIR=$(dirname "$APP_PATH")
+          hdiutil create -volname "SecRandom" -srcfolder "$APP_PATH" -ov -format UDZO "$APP_DIR/SecRandom_lutter_${{ env.APP_VERSION }}_macos.dmg"
 
       - name: Rename app
         run: |
           APP_PATH=$(find build/macos -name "*.app" -type d | head -1)
           APP_DIR=$(dirname "$APP_PATH")
-          APP_NAME=$(basename "$APP_PATH")
           mv "$APP_PATH" "$APP_DIR/SecRandom_lutter_${{ env.APP_VERSION }}_macos.app"
 
       - name: Upload macOS artifact
@@ -245,7 +258,7 @@ jobs:
           name: macos-build
           path: |
             build/macos/Build/Products/Release/SecRandom_lutter_${{ env.APP_VERSION }}_macos.app
-            SecRandom_lutter_${{ env.APP_VERSION }}_macos.dmg
+            build/macos/Build/Products/Release/SecRandom_lutter_${{ env.APP_VERSION }}_macos.dmg
 
   release:
     name: Create Release
@@ -256,15 +269,31 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
+      - name: Read CHANGELOG
+        id: changelog
+        run: |
+          CHANGELOG_PATH="CHANGELOG.md"
+          if [ -f "$CHANGELOG_PATH" ]; then
+            echo "content<<EOF" >> $GITHUB_OUTPUT
+            cat "$CHANGELOG_PATH" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "content=Release version ${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.event.inputs.release_tag }}
+          body: ${{ steps.changelog.outputs.content }}
           files: |
             artifacts/web-build/SecRandom_lutter_*.zip
             artifacts/android-apk/SecRandom_lutter_*.apk
@@ -273,6 +302,6 @@ jobs:
             artifacts/macos-build/SecRandom_lutter_*.dmg
           draft: false
           prerelease: false
-          generate_release_notes: true
+          generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

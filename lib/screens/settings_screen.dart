@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import 'student_settings_screen.dart';
+import 'settings/lottery_settings_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -22,6 +23,18 @@ class SettingsScreen extends StatelessWidget {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (context) => const StudentSettingsScreen()),
+              );
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.card_giftcard),
+            title: const Text('抽奖设置'),
+            subtitle: const Text('管理奖池、奖品及抽奖配置'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const LotterySettingsScreen()),
               );
             },
           ),
@@ -55,7 +68,7 @@ class SettingsScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.info),
             title: const Text('关于'),
-            subtitle: const Text('SecRandom-lutter v1.0.0'),
+            subtitle: const Text('SecRandom-lutter v0.0.3'),
           )
         ],
       ),

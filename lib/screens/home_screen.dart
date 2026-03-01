@@ -3,6 +3,7 @@ import '../widgets/nav_rail.dart';
 import '../widgets/control_panel.dart';
 import '../widgets/name_display.dart';
 import 'history_screen.dart';
+import 'lottery_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -30,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onDestinationSelected: (index) => setState(() => _selectedIndex = index),
                 destinations: const [
                   NavigationDestination(icon: Icon(Icons.people_outline), label: '点名'),
+                  NavigationDestination(icon: Icon(Icons.card_giftcard_outlined), label: '抽奖'),
                   NavigationDestination(icon: Icon(Icons.history_outlined), label: '历史记录'),
                   NavigationDestination(icon: Icon(Icons.settings_outlined), label: '设置'),
                 ],
@@ -136,8 +138,10 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
       case 1:
-        return const HistoryScreen();
+        return const LotteryScreen();
       case 2:
+        return const HistoryScreen();
+      case 3:
         return const SettingsScreen();
       default:
         return const SizedBox.shrink();

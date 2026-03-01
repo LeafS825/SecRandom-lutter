@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../models/student.dart';
 import '../models/history_record.dart';
+import '../models/lottery_record.dart';
+import '../services/lottery_service.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -12,9 +14,11 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
+  String _selectedTab = '点名历史'; // 默认标签页
   String _selectedClass = '1'; // 默认班级
   String _viewMode = '全部记录'; // 默认查看模式
   String? _selectedStudent;
+  String? _selectedPool; // 抽奖历史：选中的奖池
   int? _sortColumn;
   bool _sortAscending = true;
 
@@ -27,17 +31,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   // 滚动控制器
   final ScrollController _scrollController = ScrollController();
+  final LotteryService _lotteryService = LotteryService();
+
+  List<LotteryRecord> _lotteryRecords = [];
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _loadLotteryRecords();
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadLotteryRecords() async {
+    try {
+      final records = await _lotteryService.loadLotteryRecords();
+      setState(() {
+        _lotteryRecords = records;
+      });
+    } catch (e) {
+      print('加载抽奖历史失败: $e');
+    }
   }
 
   void _onScroll() {
@@ -109,11 +128,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
       }
     }
 
+    // 过滤抽奖历史记录
+    final filteredLotteryRecords = _selectedPool != null
+        ? _lotteryRecords.where((r) => r.poolName == _selectedPool).toList()
+        : _lotteryRecords;
+
     final List<Student> displayData = _getDisplayData(filteredStudents, filteredHistory, callCounts);
     final List<String> headers = _getHeaders();
     
     // 计算总数据量
-    final List<List<String>> allTableData = _getTableData(displayData, filteredHistory, callCounts);
+    final List<List<String>> allTableData = _getTableData(displayData, filteredHistory, callCounts, filteredLotteryRecords);
     _totalRows = allTableData.length;
     
     // 首次加载时自动设置初始加载量
@@ -124,6 +148,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     // 只显示当前已加载的数据
     final List<List<String>> tableData = allTableData.take(_currentRow).toList();
 
+    // 获取奖池列表
+    final Set<String> poolNames = _lotteryRecords.map((r) => r.poolName).toSet();
+    final List<String> poolOptions = poolNames.toList()..sort();
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
@@ -132,10 +160,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 标签页切换
+            _buildTabSwitcher(),
+            const SizedBox(height: 16),
+            
             Padding(
               padding: const EdgeInsets.only(bottom: 16.0),
               child: Text(
-                '点名历史记录表格',
+                _selectedTab == '点名历史' ? '点名历史记录表格' : '抽奖历史记录表格',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
@@ -149,128 +181,215 @@ class _HistoryScreenState extends State<HistoryScreen> {
               color: Theme.of(context).cardColor,
               child: Column(
                 children: [
-                  // 筛选器 1: 选择班级
-                  _buildFilterRow(
-                    icon: Icons.bookmark_outline,
-                    title: '选择班级',
-                    subtitle: '选择要查看历史记录的班级',
-                    trailing: DropdownButtonHideUnderline(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: DropdownButton<String>(
-                          value: classOptions.contains(_selectedClass) ? _selectedClass : null,
-                          isDense: true,
-                          style: TextStyle(
-                            color: Theme.of(context).textTheme.bodyMedium?.color,
+                  if (_selectedTab == '点名历史') ...[
+                    // 点名历史：班级选择器
+                    _buildFilterRow(
+                      icon: Icons.bookmark_outline,
+                      title: '选择班级',
+                      subtitle: '选择要查看历史记录的班级',
+                      trailing: DropdownButtonHideUnderline(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                          dropdownColor: Theme.of(context).cardColor,
-                          items: classOptions.map((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          }).toList(),
-                          onChanged: (newValue) {
-                            if (newValue != null) {
-                              setState(() {
-                                _selectedClass = newValue;
-                                _selectedStudent = null;
-                                _resetPagination();
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  const Divider(height: 1, indent: 16, endIndent: 16),
-
-                  // 筛选器 2: 查看模式
-                  _buildFilterRow(
-                    icon: Icons.description_outlined,
-                    title: '查看模式',
-                    subtitle: '选择历史记录的查看方式',
-                    trailing: DropdownButtonHideUnderline(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: DropdownButton<String>(
-                          value: _viewMode,
-                          isDense: true,
-                          style: TextStyle(
-                            color: Theme.of(context).textTheme.bodyMedium?.color,
-                          ),
-                          dropdownColor: Theme.of(context).cardColor,
-                          items: <String>['全部记录', '按时间查看', '个人记录'].map((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          }).toList(),
-                          onChanged: (newValue) {
+                          child: DropdownButton<String>(
+                            value: classOptions.contains(_selectedClass) ? _selectedClass : null,
+                            isDense: true,
+                            style: TextStyle(
+                              color: Theme.of(context).textTheme.bodyMedium?.color,
+                            ),
+                            dropdownColor: Theme.of(context).cardColor,
+                            items: classOptions.map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
+                            onChanged: (newValue) {
                               if (newValue != null) {
                                 setState(() {
-                                  _viewMode = newValue;
+                                  _selectedClass = newValue;
                                   _selectedStudent = null;
-                                  _sortColumn = null;
-                                  _sortAscending = true;
                                   _resetPagination();
                                 });
                               }
                             },
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                    
+                    const Divider(height: 1, indent: 16, endIndent: 16),
 
-                  if (_viewMode == '个人记录')
-                    Column(
-                      children: [
-                        const Divider(height: 1, indent: 16, endIndent: 16),
-                        _buildFilterRow(
-                          icon: Icons.person_outline,
-                          title: '选择学生',
-                          subtitle: '选择要查看历史记录的学生',
-                          trailing: DropdownButtonHideUnderline(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey.shade300),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: DropdownButton<String>(
-                                value: _selectedStudent,
-                                isDense: true,
-                                style: TextStyle(
-                                  color: Theme.of(context).textTheme.bodyMedium?.color,
-                                ),
-                                dropdownColor: Theme.of(context).cardColor,
-                                hint: Text('请选择学生', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
-                                items: filteredStudents.map((student) {
-                                  return DropdownMenuItem<String>(
-                                    value: student.name,
-                                    child: Text(student.name),
-                                  );
-                                }).toList(),
-                                onChanged: (newValue) {
+                    // 点名历史：查看模式
+                    _buildFilterRow(
+                      icon: Icons.description_outlined,
+                      title: '查看模式',
+                      subtitle: '选择历史记录的查看方式',
+                      trailing: DropdownButtonHideUnderline(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: DropdownButton<String>(
+                            value: _viewMode,
+                            isDense: true,
+                            style: TextStyle(
+                              color: Theme.of(context).textTheme.bodyMedium?.color,
+                            ),
+                            dropdownColor: Theme.of(context).cardColor,
+                            items: <String>['全部记录', '按时间查看', '个人记录'].map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
+                            onChanged: (newValue) {
+                                if (newValue != null) {
                                   setState(() {
-                                    _selectedStudent = newValue;
+                                    _viewMode = newValue;
+                                    _selectedStudent = null;
+                                    _sortColumn = null;
+                                    _sortAscending = true;
+                                    _resetPagination();
                                   });
-                                },
+                                }
+                              },
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    if (_viewMode == '个人记录')
+                      Column(
+                        children: [
+                          const Divider(height: 1, indent: 16, endIndent: 16),
+                          _buildFilterRow(
+                            icon: Icons.person_outline,
+                            title: '选择学生',
+                            subtitle: '选择要查看历史记录的学生',
+                            trailing: DropdownButtonHideUnderline(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey.shade300),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: DropdownButton<String>(
+                                  value: _selectedStudent,
+                                  isDense: true,
+                                  style: TextStyle(
+                                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                                  ),
+                                  dropdownColor: Theme.of(context).cardColor,
+                                  hint: Text('请选择学生', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
+                                  items: filteredStudents.map((student) {
+                                    return DropdownMenuItem<String>(
+                                      value: student.name,
+                                      child: Text(student.name),
+                                    );
+                                  }).toList(),
+                                  onChanged: (newValue) {
+                                    setState(() {
+                                      _selectedStudent = newValue;
+                                    });
+                                  },
+                                ),
                               ),
                             ),
                           ),
+                        ],
+                      ),
+                  ] else ...[
+                    // 抽奖历史：奖池选择器
+                    _buildFilterRow(
+                      icon: Icons.card_giftcard_outlined,
+                      title: '选择奖池',
+                      subtitle: '选择要查看历史记录的奖池',
+                      trailing: DropdownButtonHideUnderline(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: DropdownButton<String>(
+                            value: _selectedPool,
+                            isDense: true,
+                            style: TextStyle(
+                              color: Theme.of(context).textTheme.bodyMedium?.color,
+                            ),
+                            dropdownColor: Theme.of(context).cardColor,
+                            hint: Text('全部奖池', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
+                            items: [
+                              const DropdownMenuItem<String>(
+                                value: null,
+                                child: Text('全部奖池'),
+                              ),
+                              ...poolOptions.map((String value) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }),
+                            ],
+                            onChanged: (newValue) {
+                              setState(() {
+                                _selectedPool = newValue;
+                                _resetPagination();
+                              });
+                            },
+                          ),
                         ),
-                      ],
+                      ),
                     ),
+                    
+                    const Divider(height: 1, indent: 16, endIndent: 16),
+
+                    // 抽奖历史：查看模式
+                    _buildFilterRow(
+                      icon: Icons.description_outlined,
+                      title: '查看模式',
+                      subtitle: '选择历史记录的查看方式',
+                      trailing: DropdownButtonHideUnderline(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: DropdownButton<String>(
+                            value: _viewMode,
+                            isDense: true,
+                            style: TextStyle(
+                              color: Theme.of(context).textTheme.bodyMedium?.color,
+                            ),
+                            dropdownColor: Theme.of(context).cardColor,
+                            items: <String>['全部记录', '按时间查看', '按奖池查看'].map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
+                            onChanged: (newValue) {
+                                if (newValue != null) {
+                                  setState(() {
+                                    _viewMode = newValue;
+                                    _sortColumn = null;
+                                    _sortAscending = true;
+                                    _resetPagination();
+                                  });
+                                }
+                              },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 16),
 
@@ -297,7 +416,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         columns: headers.asMap().entries.map((entry) {
                           return DataColumn(
                             label: Expanded(child: Center(child: Text(entry.value, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)))),
-                            onSort: _viewMode == '全部记录' && entry.key < 4 ? (columnIndex, ascending) {
+                            onSort: _canSort(entry.key) ? (columnIndex, ascending) {
                               setState(() {
                                 _sortColumn = columnIndex;
                                 _sortAscending = ascending;
@@ -355,101 +474,289 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  Widget _buildTabSwitcher() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  _selectedTab = '点名历史';
+                  _viewMode = '全部记录';
+                  _selectedStudent = null;
+                  _resetPagination();
+                });
+              },
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(8),
+                bottomLeft: Radius.circular(8),
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _selectedTab == '点名历史'
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.transparent,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(8),
+                    bottomLeft: Radius.circular(8),
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    '点名历史',
+                    style: TextStyle(
+                      color: _selectedTab == '点名历史'
+                          ? Colors.white
+                          : Theme.of(context).textTheme.bodyMedium?.color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  _selectedTab = '抽奖历史';
+                  _viewMode = '全部记录';
+                  _selectedPool = null;
+                  _resetPagination();
+                });
+              },
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(8),
+                bottomRight: Radius.circular(8),
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _selectedTab == '抽奖历史'
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.transparent,
+                  borderRadius: const BorderRadius.only(
+                    topRight: Radius.circular(8),
+                    bottomRight: Radius.circular(8),
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    '抽奖历史',
+                    style: TextStyle(
+                      color: _selectedTab == '抽奖历史'
+                          ? Colors.white
+                          : Theme.of(context).textTheme.bodyMedium?.color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _canSort(int columnIndex) {
+    if (_selectedTab == '点名历史') {
+      return _viewMode == '全部记录' && columnIndex < 4;
+    } else {
+      return _viewMode == '全部记录' && columnIndex < 3;
+    }
+  }
+
   List<String> _getHeaders() {
-    switch (_viewMode) {
-      case '按时间查看':
-        return ['点名时间', '学号', '姓名', '性别', '小组'];
-      case '个人记录':
-        return ['点名时间', '点名模式', '点名人数', '性别限制', '小组限制'];
-      default:
-        return ['学号', '姓名', '性别', '小组', '点名次数', '权重'];
+    if (_selectedTab == '点名历史') {
+      switch (_viewMode) {
+        case '按时间查看':
+          return ['点名时间', '学号', '姓名', '性别', '小组'];
+        case '个人记录':
+          return ['点名时间', '点名模式', '点名人数', '性别限制', '小组限制'];
+        default:
+          return ['学号', '姓名', '性别', '小组', '点名次数', '权重'];
+      }
+    } else {
+      switch (_viewMode) {
+        case '按时间查看':
+          return ['抽奖时间', '奖品名称', '中奖者', '小组', '性别'];
+        case '按奖池查看':
+          return ['奖池名称', '奖品名称', '中奖次数', '最后中奖时间'];
+        default:
+          return ['抽奖时间', '奖池名称', '奖品名称', '中奖者', '小组'];
+      }
     }
   }
 
   List<Student> _getDisplayData(List<Student> students, List<HistoryRecord> history, Map<String, int> callCounts) {
-    if (_viewMode == '全部记录' || _viewMode == '按时间查看') {
+    if (_selectedTab == '点名历史' && (_viewMode == '全部记录' || _viewMode == '按时间查看')) {
       return students;
     }
     return [];
   }
 
-  List<List<String>> _getTableData(List<Student> displayData, List<HistoryRecord> history, Map<String, int> callCounts) {
-    switch (_viewMode) {
-      case '全部记录':
-        final sortedData = List<Student>.from(displayData);
-        if (_sortColumn != null && _sortColumn! >= 0) {
-          sortedData.sort((a, b) {
-            int result = 0;
-            switch (_sortColumn!) {
-              case 0:
-                result = a.id.compareTo(b.id);
-                break;
-              case 1:
-                result = a.name.compareTo(b.name);
-                break;
-              case 2:
-                result = a.gender.compareTo(b.gender);
-                break;
-              case 3:
-                result = a.group.compareTo(b.group);
-                break;
-            }
-            return _sortAscending ? result : -result;
-          });
-        }
-        return sortedData.map((student) {
-          final count = callCounts[student.name] ?? 0;
-          const weight = "1.00";
-          return [
-            student.id.toString(),
-            student.name,
-            student.gender,
-            student.group,
-            count.toString(),
-            weight,
-          ];
-        }).toList();
+  List<List<String>> _getTableData(List<Student> displayData, List<HistoryRecord> history, Map<String, int> callCounts, List<LotteryRecord> lotteryRecords) {
+    if (_selectedTab == '点名历史') {
+      switch (_viewMode) {
+        case '全部记录':
+          final sortedData = List<Student>.from(displayData);
+          if (_sortColumn != null && _sortColumn! >= 0) {
+            sortedData.sort((a, b) {
+              int result = 0;
+              switch (_sortColumn!) {
+                case 0:
+                  result = a.id.compareTo(b.id);
+                  break;
+                case 1:
+                  result = a.name.compareTo(b.name);
+                  break;
+                case 2:
+                  result = a.gender.compareTo(b.gender);
+                  break;
+                case 3:
+                  result = a.group.compareTo(b.group);
+                  break;
+              }
+              return _sortAscending ? result : -result;
+            });
+          }
+          return sortedData.map((student) {
+            final count = callCounts[student.name] ?? 0;
+            const weight = "1.00";
+            return [
+              student.id.toString(),
+              student.name,
+              student.gender,
+              student.group,
+              count.toString(),
+              weight,
+            ];
+          }).toList();
 
-      case '按时间查看':
-        final sortedHistory = List<HistoryRecord>.from(history);
-        sortedHistory.sort((a, b) => b.drawTime.compareTo(a.drawTime));
-        final studentMap = {for (var s in displayData) s.name: s};
-        final List<List<String>> result = [];
-        for (var record in sortedHistory) {
-          final names = record.name.split(',').map((e) => e.trim()).toList();
-          for (var name in names) {
-            final student = studentMap[name];
-            if (student != null) {
-              result.add([
-                record.drawTime,
-                student.id.toString(),
-                student.name,
-                student.gender,
-                student.group,
-              ]);
+        case '按时间查看':
+          final sortedHistory = List<HistoryRecord>.from(history);
+          sortedHistory.sort((a, b) => b.drawTime.compareTo(a.drawTime));
+          final studentMap = {for (var s in displayData) s.name: s};
+          final List<List<String>> result = [];
+          for (var record in sortedHistory) {
+            final names = record.name.split(',').map((e) => e.trim()).toList();
+            for (var name in names) {
+              final student = studentMap[name];
+              if (student != null) {
+                result.add([
+                  record.drawTime,
+                  student.id.toString(),
+                  student.name,
+                  student.gender,
+                  student.group,
+                ]);
+              }
             }
           }
-        }
-        return result;
+          return result;
 
-      case '个人记录':
-        if (_selectedStudent == null) return [];
-        final studentHistory = history.where((h) => h.name.contains(_selectedStudent!)).toList();
-        studentHistory.sort((a, b) => b.drawTime.compareTo(a.drawTime));
-        return studentHistory.map((record) {
-          final drawMethod = record.drawMethod == 1 ? '随机抽取' : '公平抽取';
-          return [
-            record.drawTime,
-            drawMethod,
-            record.drawPeopleNumbers.toString(),
-            record.drawGender,
-            record.drawGroup,
-          ];
-        }).toList();
+        case '个人记录':
+          if (_selectedStudent == null) return [];
+          final studentHistory = history.where((h) => h.name.contains(_selectedStudent!)).toList();
+          studentHistory.sort((a, b) => b.drawTime.compareTo(a.drawTime));
+          return studentHistory.map((record) {
+            final drawMethod = record.drawMethod == 1 ? '随机抽取' : '公平抽取';
+            return [
+              record.drawTime,
+              drawMethod,
+              record.drawPeopleNumbers.toString(),
+              record.drawGender,
+              record.drawGroup,
+            ];
+          }).toList();
 
-      default:
-        return [];
+        default:
+          return [];
+      }
+    } else {
+      // 抽奖历史
+      switch (_viewMode) {
+        case '全部记录':
+          final sortedRecords = List<LotteryRecord>.from(lotteryRecords);
+          if (_sortColumn != null && _sortColumn! >= 0) {
+            sortedRecords.sort((a, b) {
+              int result = 0;
+              switch (_sortColumn!) {
+                case 0:
+                  result = a.drawTime.compareTo(b.drawTime);
+                  break;
+                case 1:
+                  result = a.poolName.compareTo(b.poolName);
+                  break;
+                case 2:
+                  result = a.prizeName.compareTo(b.prizeName);
+                  break;
+              }
+              return _sortAscending ? result : -result;
+            });
+          }
+          return sortedRecords.map((record) {
+            return [
+              _formatDateTime(record.drawTime),
+              record.poolName,
+              record.prizeName,
+              record.studentName ?? '-',
+              record.groupName ?? '-',
+            ];
+          }).toList();
+
+        case '按时间查看':
+          final sortedRecords = List<LotteryRecord>.from(lotteryRecords);
+          sortedRecords.sort((a, b) => b.drawTime.compareTo(a.drawTime));
+          return sortedRecords.map((record) {
+            return [
+              _formatDateTime(record.drawTime),
+              record.prizeName,
+              record.studentName ?? '-',
+              record.groupName ?? '-',
+              record.gender ?? '-',
+            ];
+          }).toList();
+
+        case '按奖池查看':
+          final poolStats = <String, List<LotteryRecord>>{};
+          for (var record in lotteryRecords) {
+            if (!poolStats.containsKey(record.prizeName)) {
+              poolStats[record.prizeName] = [];
+            }
+            poolStats[record.prizeName]!.add(record);
+          }
+          
+          final result = <List<String>>[];
+          poolStats.forEach((prizeName, records) {
+            final sortedRecords = List<LotteryRecord>.from(records);
+            sortedRecords.sort((a, b) => b.drawTime.compareTo(a.drawTime));
+            final lastDrawTime = sortedRecords.first.drawTime;
+            result.add([
+              _selectedPool ?? '全部',
+              prizeName,
+              records.length.toString(),
+              _formatDateTime(lastDrawTime),
+            ]);
+          });
+          return result;
+
+        default:
+          return [];
+      }
     }
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}:${dateTime.second.toString().padLeft(2, '0')}';
   }
 
   Widget _buildFilterRow({

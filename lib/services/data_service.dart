@@ -7,6 +7,7 @@ import 'package:universal_html/html.dart' as html;
 import '../models/student.dart';
 import '../models/history_record.dart';
 import '../models/app_config.dart';
+import '../models/lottery_record.dart';
 
 class DataService {
   static const String _dataDirName = 'data';
@@ -491,5 +492,284 @@ class DataService {
         exist: true,
       );
     });
+  }
+
+  Future<void> savePrizePoolData(String poolName, Map<String, dynamic> poolData) async {
+    try {
+      if (!_isWeb) {
+        final file = await _getPrizeFile(poolName);
+        await file.writeAsString(const JsonEncoder.withIndent('  ').convert(poolData));
+      } else {
+        final String jsonData = const JsonEncoder.withIndent('  ').convert(poolData);
+        
+        if (jsonData.length > 1000000) {
+          print('Warning: Prize data is large (${jsonData.length} chars), may cause performance issues');
+        }
+        
+        _setWebStorage('prize_$poolName.json', jsonData);
+      }
+    } catch (e) {
+      print('Error saving prize pool: $e');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> loadPrizePoolData(String poolName) async {
+    try {
+      if (!_isWeb) {
+        final file = await _getPrizeFile(poolName);
+        if (!await file.exists()) {
+          return {};
+        }
+        final String data = await file.readAsString();
+        if (data.isEmpty) return {};
+        
+        return json.decode(data) as Map<String, dynamic>;
+      } else {
+        final String? jsonData = _getWebStorage('prize_$poolName.json');
+        if (jsonData == null || jsonData.isEmpty) {
+          return {};
+        }
+        
+        return json.decode(jsonData) as Map<String, dynamic>;
+      }
+    } catch (e) {
+      print('Error loading prize pool: $e');
+      return {};
+    }
+  }
+
+  Future<void> deletePrizePoolData(String poolName) async {
+    try {
+      if (!_isWeb) {
+        final file = await _getPrizeFile(poolName);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } else {
+        _setWebStorage('prize_$poolName.json', '');
+      }
+    } catch (e) {
+      print('Error deleting prize pool: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> loadAllPrizePools() async {
+    try {
+      final dirPath = await _getDataDirPath();
+      if (dirPath == null) {
+        return [];
+      }
+      
+      final dir = Directory(dirPath);
+      if (!await dir.exists()) {
+        return [];
+      }
+      
+      final List<Map<String, dynamic>> pools = [];
+      await for (var entity in dir.list()) {
+        if (entity is File) {
+          final file = entity;
+          final fileName = file.path.split(Platform.pathSeparator).last;
+          if (fileName.startsWith('prize_') && fileName.endsWith('.json')) {
+            try {
+              final data = await file.readAsString();
+              if (data.isNotEmpty) {
+                final poolData = json.decode(data) as Map<String, dynamic>;
+                pools.add(poolData);
+              }
+            } catch (e) {
+              print('Error loading pool $fileName: $e');
+            }
+          }
+        }
+      }
+      
+      return pools;
+    } catch (e) {
+      print('Error loading prize pools: $e');
+      return [];
+    }
+  }
+
+  Future<File> _getPrizeFile(String poolName) async {
+    final dirPath = await _getDataDirPath();
+    if (dirPath == null) {
+      throw UnsupportedError('File system not available on web platform');
+    }
+    return File(path.join(dirPath, 'prize_$poolName.json'));
+  }
+
+  Future<void> addLotteryRecord(LotteryRecord record) async {
+    try {
+      if (!_isWeb) {
+        final file = await _getLotteryRecordsFile();
+        Map<String, dynamic> dataMap = {};
+        
+        if (await file.exists()) {
+          final String data = await file.readAsString();
+          if (data.isNotEmpty) {
+            try {
+              dataMap = json.decode(data) as Map<String, dynamic>;
+            } catch (e) {
+              dataMap = {};
+            }
+          }
+        }
+        
+        final poolName = record.poolName;
+        if (!dataMap.containsKey(poolName)) {
+          dataMap[poolName] = [];
+        }
+        (dataMap[poolName] as List).add(record.toJson());
+        
+        await file.writeAsString(const JsonEncoder.withIndent('  ').convert(dataMap));
+      } else {
+        Map<String, dynamic> dataMap = {};
+        
+        final String? existingData = _getWebStorage('lottery_records.json');
+        if (existingData != null && existingData.isNotEmpty) {
+          try {
+            dataMap = json.decode(existingData) as Map<String, dynamic>;
+          } catch (e) {
+            dataMap = {};
+          }
+        }
+        
+        final poolName = record.poolName;
+        if (!dataMap.containsKey(poolName)) {
+          dataMap[poolName] = [];
+        }
+        (dataMap[poolName] as List).add(record.toJson());
+        
+        final String jsonData = const JsonEncoder.withIndent('  ').convert(dataMap);
+        
+        if (jsonData.length > 1000000) {
+          print('Warning: Lottery records data is large (${jsonData.length} chars), may cause performance issues');
+        }
+        
+        _setWebStorage('lottery_records.json', jsonData);
+      }
+    } catch (e) {
+      print('Error adding lottery record: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<LotteryRecord>> loadLotteryRecords() async {
+    try {
+      if (!_isWeb) {
+        final file = await _getLotteryRecordsFile();
+        if (!await file.exists()) {
+          return [];
+        }
+        final String data = await file.readAsString();
+        if (data.isEmpty) return [];
+        
+        final Map<String, dynamic> jsonMap = json.decode(data);
+        final List<LotteryRecord> result = [];
+        
+        for (var poolName in jsonMap.keys) {
+          final List<dynamic> jsonList = jsonMap[poolName];
+          for (var json in jsonList) {
+            result.add(LotteryRecord.fromJson(json));
+          }
+        }
+        
+        return result;
+      } else {
+        final String? jsonData = _getWebStorage('lottery_records.json');
+        if (jsonData == null || jsonData.isEmpty) {
+          return [];
+        }
+        
+        final Map<String, dynamic> jsonMap = json.decode(jsonData);
+        final List<LotteryRecord> result = [];
+        
+        for (var poolName in jsonMap.keys) {
+          final List<dynamic> jsonList = jsonMap[poolName];
+          for (var json in jsonList) {
+            result.add(LotteryRecord.fromJson(json));
+          }
+        }
+        
+        return result;
+      }
+    } catch (e) {
+      print('Error loading lottery records: $e');
+      return [];
+    }
+  }
+
+  Future<void> clearLotteryRecords(String poolName) async {
+    try {
+      if (!_isWeb) {
+        final file = await _getLotteryRecordsFile();
+        Map<String, dynamic> dataMap = {};
+        
+        if (await file.exists()) {
+          final String data = await file.readAsString();
+          if (data.isNotEmpty) {
+            try {
+              dataMap = json.decode(data) as Map<String, dynamic>;
+            } catch (e) {
+              dataMap = {};
+            }
+          }
+        }
+        
+        dataMap.remove(poolName);
+        await file.writeAsString(const JsonEncoder.withIndent('  ').convert(dataMap));
+      } else {
+        Map<String, dynamic> dataMap = {};
+        
+        final String? existingData = _getWebStorage('lottery_records.json');
+        if (existingData != null && existingData.isNotEmpty) {
+          try {
+            dataMap = json.decode(existingData) as Map<String, dynamic>;
+          } catch (e) {
+            dataMap = {};
+          }
+        }
+        
+        dataMap.remove(poolName);
+        
+        final String jsonData = const JsonEncoder.withIndent('  ').convert(dataMap);
+        
+        if (jsonData.length > 1000000) {
+          print('Warning: Lottery records data is large (${jsonData.length} chars), may cause performance issues');
+        }
+        
+        _setWebStorage('lottery_records.json', jsonData);
+      }
+    } catch (e) {
+      print('Error clearing lottery records: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> clearAllLotteryRecords() async {
+    try {
+      if (!_isWeb) {
+        final file = await _getLotteryRecordsFile();
+        if (await file.exists()) {
+          await file.writeAsString('{}');
+        }
+      } else {
+        _setWebStorage('lottery_records.json', '{}');
+      }
+    } catch (e) {
+      print('Error clearing all lottery records: $e');
+      rethrow;
+    }
+  }
+
+  Future<File> _getLotteryRecordsFile() async {
+    final dirPath = await _getDataDirPath();
+    if (dirPath == null) {
+      throw UnsupportedError('File system not available on web platform');
+    }
+    return File(path.join(dirPath, 'lottery_records.json'));
   }
 }

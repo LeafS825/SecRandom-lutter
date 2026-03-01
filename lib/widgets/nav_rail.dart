@@ -33,6 +33,11 @@ class NavRail extends StatelessWidget {
                     label: Text('点名'),
                   ),
                   NavigationRailDestination(
+                    icon: Icon(Icons.card_giftcard_outlined),
+                    selectedIcon: Icon(Icons.card_giftcard),
+                    label: Text('抽奖'),
+                  ),
+                  NavigationRailDestination(
                     icon: Icon(Icons.history_outlined),
                     selectedIcon: Icon(Icons.history),
                     label: Text('历史记录'),
