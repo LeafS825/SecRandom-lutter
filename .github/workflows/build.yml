@@ -307,14 +307,16 @@ jobs:
       - name: Read CHANGELOG
         id: changelog
         run: |
-          CHANGELOG_PATH="CHANGELOG.md"
+          VERSION="${{ github.event.inputs.version }}"
+          CHANGELOG_PATH="changelogs/${VERSION}.md"
           if [ -f "$CHANGELOG_PATH" ]; then
-            delimiter=$(openssl rand -hex 16)
-            echo "content<<$delimiter" >> "$GITHUB_OUTPUT"
-            cat "$CHANGELOG_PATH" >> "$GITHUB_OUTPUT"
-            echo "$delimiter" >> "$GITHUB_OUTPUT"
+            content=$(cat "$CHANGELOG_PATH")
+            content="${content//'%'/'%25'}"
+            content="${content//$'\n'/'%0A'}"
+            content="${content//$'\r'/'%0D'}"
+            echo "content=$content" >> "$GITHUB_OUTPUT"
           else
-            echo "content=Release version ${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "content=Release version $VERSION" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create release
