@@ -310,9 +310,9 @@ jobs:
           CHANGELOG_PATH="CHANGELOG.md"
           if [ -f "$CHANGELOG_PATH" ]; then
             {
-              echo "content<<EOF"
+              echo content<<EOF
               cat "$CHANGELOG_PATH"
-              echo "EOF"
+              echo EOF
             } >> "$GITHUB_OUTPUT"
           else
             echo "content=Release version ${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
