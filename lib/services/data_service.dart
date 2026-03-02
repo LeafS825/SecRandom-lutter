@@ -557,36 +557,61 @@ class DataService {
 
   Future<List<Map<String, dynamic>>> loadAllPrizePools() async {
     try {
-      final dirPath = await _getDataDirPath();
-      if (dirPath == null) {
-        return [];
-      }
-      
-      final dir = Directory(dirPath);
-      if (!await dir.exists()) {
-        return [];
-      }
-      
-      final List<Map<String, dynamic>> pools = [];
-      await for (var entity in dir.list()) {
-        if (entity is File) {
-          final file = entity;
-          final fileName = file.path.split(Platform.pathSeparator).last;
-          if (fileName.startsWith('prize_') && fileName.endsWith('.json')) {
-            try {
-              final data = await file.readAsString();
-              if (data.isNotEmpty) {
-                final poolData = json.decode(data) as Map<String, dynamic>;
-                pools.add(poolData);
+      if (!_isWeb) {
+        final dirPath = await _getDataDirPath();
+        if (dirPath == null) {
+          return [];
+        }
+        
+        final dir = Directory(dirPath);
+        if (!await dir.exists()) {
+          return [];
+        }
+        
+        final List<Map<String, dynamic>> pools = [];
+        await for (var entity in dir.list()) {
+          if (entity is File) {
+            final file = entity;
+            final fileName = file.path.split(Platform.pathSeparator).last;
+            if (fileName.startsWith('prize_') && fileName.endsWith('.json')) {
+              try {
+                final data = await file.readAsString();
+                if (data.isNotEmpty) {
+                  final poolData = json.decode(data) as Map<String, dynamic>;
+                  pools.add(poolData);
+                }
+              } catch (e) {
+                print('Error loading pool $fileName: $e');
               }
-            } catch (e) {
-              print('Error loading pool $fileName: $e');
             }
           }
         }
+        
+        return pools;
+      } else {
+        final List<Map<String, dynamic>> pools = [];
+        try {
+          final storage = html.window.localStorage;
+          for (int i = 0; i < storage.length; i++) {
+            final key = storage.keys.elementAt(i);
+            if (key.startsWith('prize_') && key.endsWith('.json')) {
+              try {
+                final jsonData = storage[key];
+                if (jsonData != null && jsonData.isNotEmpty) {
+                  final poolData = json.decode(jsonData) as Map<String, dynamic>;
+                  pools.add(poolData);
+                }
+              } catch (e) {
+                print('Error loading pool $key: $e');
+              }
+            }
+          }
+        } catch (e) {
+          print('Error loading prize pools from localStorage: $e');
+        }
+        
+        return pools;
       }
-      
-      return pools;
     } catch (e) {
       print('Error loading prize pools: $e');
       return [];

@@ -119,16 +119,21 @@ class _LotteryScreenState extends State<LotteryScreen> {
         return;
       }
 
-      final randomPrize = availablePrizes[_random.nextInt(availablePrizes.length)];
+      final List<LotteryRecord> rollingRecords = [];
+      for (int i = 0; i < _drawCount; i++) {
+        final randomPrize = availablePrizes[_random.nextInt(availablePrizes.length)];
+        rollingRecords.add(LotteryRecord(
+          id: DateTime.now().millisecondsSinceEpoch.toString() + '_$i',
+          poolName: pool.name,
+          prizeName: randomPrize.name,
+          drawTime: DateTime.now(),
+          drawCount: 1,
+        ));
+      }
+
       if (mounted) {
         setState(() {
-          _displayedRecords = [LotteryRecord(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            poolName: pool.name,
-            prizeName: randomPrize.name,
-            drawTime: DateTime.now(),
-            drawCount: _drawCount,
-          )];
+          _displayedRecords = rollingRecords;
         });
       }
     });

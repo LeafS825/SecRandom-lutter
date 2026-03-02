@@ -53,6 +53,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final records = await _lotteryService.loadLotteryRecords();
       setState(() {
         _lotteryRecords = records;
+        if (_selectedPool == null && records.isNotEmpty) {
+          final poolNames = records.map((r) => r.poolName).toSet().toList()..sort();
+          _selectedPool = poolNames.isNotEmpty ? poolNames.first : null;
+        }
       });
     } catch (e) {
       print('加载抽奖历史失败: $e');
@@ -131,7 +135,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     // 过滤抽奖历史记录
     final filteredLotteryRecords = _selectedPool != null
         ? _lotteryRecords.where((r) => r.poolName == _selectedPool).toList()
-        : _lotteryRecords;
+        : <LotteryRecord>[];
 
     final List<Student> displayData = _getDisplayData(filteredStudents, filteredHistory, callCounts);
     final List<String> headers = _getHeaders();
@@ -324,19 +328,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               color: Theme.of(context).textTheme.bodyMedium?.color,
                             ),
                             dropdownColor: Theme.of(context).cardColor,
-                            hint: Text('全部奖池', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
-                            items: [
-                              const DropdownMenuItem<String>(
-                                value: null,
-                                child: Text('全部奖池'),
-                              ),
-                              ...poolOptions.map((String value) {
-                                return DropdownMenuItem<String>(
-                                  value: value,
-                                  child: Text(value),
-                                );
-                              }),
-                            ],
+                            hint: Text('请选择奖池', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
+                            items: poolOptions.map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
                             onChanged: (newValue) {
                               setState(() {
                                 _selectedPool = newValue;
@@ -369,7 +367,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               color: Theme.of(context).textTheme.bodyMedium?.color,
                             ),
                             dropdownColor: Theme.of(context).cardColor,
-                            items: <String>['全部记录', '按时间查看', '按奖池查看'].map((String value) {
+                            items: <String>['全部记录', '按时间查看'].map((String value) {
                               return DropdownMenuItem<String>(
                                 value: value,
                                 child: Text(value),
@@ -587,11 +585,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     } else {
       switch (_viewMode) {
         case '按时间查看':
-          return ['抽奖时间', '奖品名称', '中奖者', '小组', '性别'];
-        case '按奖池查看':
-          return ['奖池名称', '奖品名称', '中奖次数', '最后中奖时间'];
+          return ['抽奖时间', '奖品名称', '中奖者'];
         default:
-          return ['抽奖时间', '奖池名称', '奖品名称', '中奖者', '小组'];
+          return ['奖品名称', '中奖次数', '最后中奖时间'];
       }
     }
   }
@@ -684,35 +680,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     } else {
       // 抽奖历史
       switch (_viewMode) {
-        case '全部记录':
-          final sortedRecords = List<LotteryRecord>.from(lotteryRecords);
-          if (_sortColumn != null && _sortColumn! >= 0) {
-            sortedRecords.sort((a, b) {
-              int result = 0;
-              switch (_sortColumn!) {
-                case 0:
-                  result = a.drawTime.compareTo(b.drawTime);
-                  break;
-                case 1:
-                  result = a.poolName.compareTo(b.poolName);
-                  break;
-                case 2:
-                  result = a.prizeName.compareTo(b.prizeName);
-                  break;
-              }
-              return _sortAscending ? result : -result;
-            });
-          }
-          return sortedRecords.map((record) {
-            return [
-              _formatDateTime(record.drawTime),
-              record.poolName,
-              record.prizeName,
-              record.studentName ?? '-',
-              record.groupName ?? '-',
-            ];
-          }).toList();
-
         case '按时间查看':
           final sortedRecords = List<LotteryRecord>.from(lotteryRecords);
           sortedRecords.sort((a, b) => b.drawTime.compareTo(a.drawTime));
@@ -721,12 +688,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               _formatDateTime(record.drawTime),
               record.prizeName,
               record.studentName ?? '-',
-              record.groupName ?? '-',
-              record.gender ?? '-',
             ];
           }).toList();
 
-        case '按奖池查看':
+        default:
           final poolStats = <String, List<LotteryRecord>>{};
           for (var record in lotteryRecords) {
             if (!poolStats.containsKey(record.prizeName)) {
@@ -741,16 +706,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
             sortedRecords.sort((a, b) => b.drawTime.compareTo(a.drawTime));
             final lastDrawTime = sortedRecords.first.drawTime;
             result.add([
-              _selectedPool ?? '全部',
               prizeName,
               records.length.toString(),
               _formatDateTime(lastDrawTime),
             ]);
           });
           return result;
-
-        default:
-          return [];
       }
     }
   }
