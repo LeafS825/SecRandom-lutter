@@ -309,11 +309,10 @@ jobs:
         run: |
           CHANGELOG_PATH="CHANGELOG.md"
           if [ -f "$CHANGELOG_PATH" ]; then
-            {
-              echo content<<EOF
-              cat "$CHANGELOG_PATH"
-              echo EOF
-            } >> "$GITHUB_OUTPUT"
+            delimiter=$(openssl rand -hex 16)
+            echo "content<<$delimiter" >> "$GITHUB_OUTPUT"
+            cat "$CHANGELOG_PATH" >> "$GITHUB_OUTPUT"
+            echo "$delimiter" >> "$GITHUB_OUTPUT"
           else
             echo "content=Release version ${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
           fi
