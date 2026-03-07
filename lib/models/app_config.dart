@@ -3,7 +3,9 @@ class AppConfig {
   final int selectCount;
   final String? selectedClass;
   final List<String> groups;
-  final Map<String, List<String>> classGroups; // Map of class name to list of groups
+  final Map<String, List<String>>
+  classGroups; // Map of class name to list of groups
+  final bool fairDrawEnabled;
 
   AppConfig({
     required this.themeMode,
@@ -11,6 +13,7 @@ class AppConfig {
     this.selectedClass,
     this.groups = const ['1'],
     this.classGroups = const {},
+    this.fairDrawEnabled = true,
   });
 
   Map<String, dynamic> toJson() {
@@ -20,6 +23,7 @@ class AppConfig {
       'selected_class': selectedClass,
       'groups': groups,
       'class_groups': classGroups,
+      'fair_draw_enabled': fairDrawEnabled,
     };
   }
 
@@ -28,14 +32,20 @@ class AppConfig {
       themeMode: json['theme_mode'] ?? 'system',
       selectCount: json['select_count'] ?? 1,
       selectedClass: json['selected_class'],
-      groups: (json['groups'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? ['1'],
-      classGroups: (json['class_groups'] as Map<String, dynamic>?)?.map(
+      groups:
+          (json['groups'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          ['1'],
+      classGroups:
+          (json['class_groups'] as Map<String, dynamic>?)?.map(
             (key, value) => MapEntry(
               key,
               (value as List<dynamic>).map((e) => e.toString()).toList(),
             ),
           ) ??
           {},
+      fairDrawEnabled: json['fair_draw_enabled'] as bool? ?? true,
     );
   }
 
@@ -47,6 +57,7 @@ class AppConfig {
       selectedClass: null,
       groups: ['1'],
       classGroups: {},
+      fairDrawEnabled: true,
     );
   }
 }

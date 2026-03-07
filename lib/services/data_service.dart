@@ -417,6 +417,62 @@ class DataService {
     }
   }
 
+  Future<void> clearHistoryRecords({String? className}) async {
+    try {
+      if (!_isWeb) {
+        final file = await _getHistoryFile();
+        if (className == null) {
+          if (await file.exists()) {
+            await file.writeAsString('{}');
+          }
+          return;
+        }
+
+        Map<String, dynamic> dataMap = {};
+        if (await file.exists()) {
+          final String data = await file.readAsString();
+          if (data.isNotEmpty) {
+            try {
+              dataMap = json.decode(data) as Map<String, dynamic>;
+            } catch (e) {
+              dataMap = {};
+            }
+          }
+        }
+
+        dataMap.remove(className);
+        await file.writeAsString(const JsonEncoder.withIndent('  ').convert(dataMap));
+      } else {
+        if (className == null) {
+          _setWebStorage(_historyFileName, '{}');
+          return;
+        }
+
+        Map<String, dynamic> dataMap = {};
+        final String? existingData = _getWebStorage(_historyFileName);
+        if (existingData != null && existingData.isNotEmpty) {
+          try {
+            dataMap = json.decode(existingData) as Map<String, dynamic>;
+          } catch (e) {
+            dataMap = {};
+          }
+        }
+
+        dataMap.remove(className);
+        final String jsonData = const JsonEncoder.withIndent('  ').convert(dataMap);
+
+        if (jsonData.length > 1000000) {
+          print('Warning: History data is large (${jsonData.length} chars), may cause performance issues');
+        }
+
+        _setWebStorage(_historyFileName, jsonData);
+      }
+    } catch (e) {
+      print('Error clearing history records: $e');
+      rethrow;
+    }
+  }
+
   Future<void> saveConfig(AppConfig config) async {
     try {
       if (!_isWeb) {

@@ -3,11 +3,13 @@ import '../models/app_config.dart';
 import '../models/history_record.dart';
 import '../models/student.dart';
 import '../services/data_service.dart';
+import '../services/fair_draw_service.dart';
 import '../services/random_service.dart';
 
 class AppProvider with ChangeNotifier {
   final DataService _dataService = DataService();
   final RandomService _randomService = RandomService();
+  final FairDrawService _fairDrawService = FairDrawService();
 
   List<Student> _allStudents = [];
   List<Student> _remainingStudents = [];
@@ -20,6 +22,7 @@ class AppProvider with ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
 
   int _selectCount = 1;
+  bool _fairDrawEnabled = true;
   String? _selectedClass;
   String? _selectedGroup;
   String? _selectedGender;
@@ -31,6 +34,7 @@ class AppProvider with ChangeNotifier {
   int get selectCount => _selectCount;
   int get remainingCount => _remainingStudents.length;
   int get totalCount => _filteredStudents().length;
+  bool get fairDrawEnabled => _fairDrawEnabled;
   String? get selectedClass => _selectedClass;
   String? get selectedGroup => _selectedGroup;
   String? get selectedGender => _selectedGender;
@@ -49,12 +53,14 @@ class AppProvider with ChangeNotifier {
     final config = await _dataService.loadConfig();
     _themeMode = _parseThemeMode(config.themeMode);
     _selectCount = config.selectCount;
+    _fairDrawEnabled = config.fairDrawEnabled;
     _selectedClass = config.selectedClass;
 
     final jsonClassNames = await _dataService.loadClassNames();
     final configGroups = config.groups.toSet();
     final studentGroups = _allStudents.map((s) => s.className).toSet();
-    _groups = {...configGroups, ...jsonClassNames, ...studentGroups}.toList()..sort();
+    _groups = {...configGroups, ...jsonClassNames, ...studentGroups}.toList()
+      ..sort();
     if (_groups.isEmpty) {
       _groups = ['1'];
     }
@@ -102,18 +108,20 @@ class AppProvider with ChangeNotifier {
       selectedClass: _selectedClass,
       groups: _groups,
       classGroups: _classGroups,
+      fairDrawEnabled: _fairDrawEnabled,
     );
     await _dataService.saveConfig(config);
   }
 
   List<String> getGroupsForClass(String? className) {
     if (className == null) return [];
-    final dynamicGroups = _allStudents
-        .where((s) => s.className == className)
-        .map((s) => s.group.trim().isEmpty ? '1' : s.group)
-        .toSet()
-        .toList()
-      ..sort();
+    final dynamicGroups =
+        _allStudents
+            .where((s) => s.className == className)
+            .map((s) => s.group.trim().isEmpty ? '1' : s.group)
+            .toSet()
+            .toList()
+          ..sort();
     return dynamicGroups;
   }
 
@@ -130,7 +138,11 @@ class AppProvider with ChangeNotifier {
     }
   }
 
-  Future<void> renameGroupInClass(String className, String oldName, String newName) async {
+  Future<void> renameGroupInClass(
+    String className,
+    String oldName,
+    String newName,
+  ) async {
     if (className.isEmpty || newName.isEmpty || oldName == newName) return;
 
     final groups = _classGroups[className] ?? [];
@@ -147,14 +159,16 @@ class AppProvider with ChangeNotifier {
     final updated = <Student>[];
     for (final s in _allStudents) {
       if (s.className == className && s.group == oldName) {
-        updated.add(Student(
-          id: s.id,
-          name: s.name,
-          gender: s.gender,
-          group: newName,
-          className: s.className,
-          exist: s.exist,
-        ));
+        updated.add(
+          Student(
+            id: s.id,
+            name: s.name,
+            gender: s.gender,
+            group: newName,
+            className: s.className,
+            exist: s.exist,
+          ),
+        );
         changed = true;
       } else {
         updated.add(s);
@@ -182,14 +196,16 @@ class AppProvider with ChangeNotifier {
     final updated = <Student>[];
     for (final s in _allStudents) {
       if (s.className == className && s.group == groupName) {
-        updated.add(Student(
-          id: s.id,
-          name: s.name,
-          gender: s.gender,
-          group: '1',
-          className: s.className,
-          exist: s.exist,
-        ));
+        updated.add(
+          Student(
+            id: s.id,
+            name: s.name,
+            gender: s.gender,
+            group: '1',
+            className: s.className,
+            exist: s.exist,
+          ),
+        );
         changed = true;
       } else {
         updated.add(s);
@@ -233,14 +249,16 @@ class AppProvider with ChangeNotifier {
     final updated = <Student>[];
     for (final s in _allStudents) {
       if (s.className == oldName) {
-        updated.add(Student(
-          id: s.id,
-          name: s.name,
-          gender: s.gender,
-          group: s.group,
-          className: normalized,
-          exist: s.exist,
-        ));
+        updated.add(
+          Student(
+            id: s.id,
+            name: s.name,
+            gender: s.gender,
+            group: s.group,
+            className: normalized,
+            exist: s.exist,
+          ),
+        );
         changed = true;
       } else {
         updated.add(s);
@@ -325,6 +343,12 @@ class AppProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void setFairDrawEnabled(bool enabled) {
+    _fairDrawEnabled = enabled;
+    _saveConfig();
+    notifyListeners();
+  }
+
   void setSelectedClass(String? className) {
     _selectedClass = className;
     _selectedGroup = null;
@@ -365,19 +389,24 @@ class AppProvider with ChangeNotifier {
     }
 
     int newId = 1;
-    final classStudents = _allStudents.where((s) => s.className == normalizedClass).toList();
+    final classStudents = _allStudents
+        .where((s) => s.className == normalizedClass)
+        .toList();
     if (classStudents.isNotEmpty) {
-      newId = classStudents.map((s) => s.id).reduce((a, b) => a > b ? a : b) + 1;
+      newId =
+          classStudents.map((s) => s.id).reduce((a, b) => a > b ? a : b) + 1;
     }
 
-    _allStudents.add(Student(
-      id: newId,
-      name: normalizedName,
-      gender: gender,
-      group: normalizedGroup,
-      className: normalizedClass,
-      exist: exist,
-    ));
+    _allStudents.add(
+      Student(
+        id: newId,
+        name: normalizedName,
+        gender: gender,
+        group: normalizedGroup,
+        className: normalizedClass,
+        exist: exist,
+      ),
+    );
 
     await _dataService.saveStudents(_allStudents);
     _resetRemaining();
@@ -393,13 +422,17 @@ class AppProvider with ChangeNotifier {
     String? group,
     bool? exist,
   }) async {
-    final index = _allStudents.indexWhere((s) => s.className == className && s.id == id);
+    final index = _allStudents.indexWhere(
+      (s) => s.className == className && s.id == id,
+    );
     if (index < 0) return;
 
     final old = _allStudents[index];
     final nextName = (name ?? old.name).trim();
     if (nextName.isEmpty) return;
-    final nextGroup = (group ?? old.group).trim().isEmpty ? '1' : (group ?? old.group).trim();
+    final nextGroup = (group ?? old.group).trim().isEmpty
+        ? '1'
+        : (group ?? old.group).trim();
 
     _allStudents[index] = Student(
       id: old.id,
@@ -422,11 +455,20 @@ class AppProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setStudentExistInClass(String className, int id, bool exist) async {
+  Future<void> setStudentExistInClass(
+    String className,
+    int id,
+    bool exist,
+  ) async {
     await updateStudentInClass(className, id, exist: exist);
   }
 
-  Future<void> addStudent(String name, String gender, String group, String className) async {
+  Future<void> addStudent(
+    String name,
+    String gender,
+    String group,
+    String className,
+  ) async {
     await addStudentToClass(
       className,
       name: name,
@@ -456,6 +498,16 @@ class AppProvider with ChangeNotifier {
     await deleteStudentFromClass(_selectedClass!, id);
   }
 
+  Future<void> clearHistory({String? className}) async {
+    if (className != null) {
+      _history = _history.where((record) => record.className != className).toList();
+    } else {
+      _history = [];
+    }
+    await _dataService.clearHistoryRecords(className: className);
+    notifyListeners();
+  }
+
   Future<void> startRollCall() async {
     if (_isRolling) return;
 
@@ -468,7 +520,30 @@ class AppProvider with ChangeNotifier {
       _resetRemaining();
     }
 
-    final picked = _randomService.pickRandomStudents(_remainingStudents, _selectCount);
+    final className = _selectedClass ?? '1';
+    final classHistory = _history
+        .where((record) => record.className == className)
+        .toList();
+
+    List<Student> picked;
+    if (_fairDrawEnabled) {
+      picked = _fairDrawService.draw(
+        candidates: _remainingStudents,
+        classHistory: classHistory,
+        count: _selectCount,
+      );
+      if (picked.isEmpty) {
+        picked = _randomService.pickRandomStudents(
+          _remainingStudents,
+          _selectCount,
+        );
+      }
+    } else {
+      picked = _randomService.pickRandomStudents(
+        _remainingStudents,
+        _selectCount,
+      );
+    }
     _currentSelection = picked;
 
     for (final s in picked) {
@@ -486,12 +561,12 @@ class AppProvider with ChangeNotifier {
     final record = HistoryRecord(
       id: newId,
       name: nameStr,
-      drawMethod: 1,
+      drawMethod: _fairDrawEnabled ? 2 : 1,
       drawTime: timeStr,
       drawPeopleNumbers: picked.length,
       drawGroup: _selectedGroup ?? '所有小组',
       drawGender: _selectedGender ?? '所有性别',
-      className: _selectedClass ?? '1',
+      className: className,
     );
 
     _history.insert(0, record);

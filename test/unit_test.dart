@@ -109,5 +109,73 @@ void main() {
       expect(history.length, 1);
       expect(history.first.name, 'Record 1');
     });
+
+    test('clear history for specific class', () async {
+      await Future.delayed(const Duration(milliseconds: 100));
+      final service = DataService();
+      final records = [
+        HistoryRecord(
+          id: 1,
+          name: 'Class1',
+          drawMethod: 1,
+          drawTime: '2023-01-01',
+          drawPeopleNumbers: 1,
+          drawGroup: 'All',
+          drawGender: 'All',
+          className: '1',
+        ),
+        HistoryRecord(
+          id: 2,
+          name: 'Class2',
+          drawMethod: 1,
+          drawTime: '2023-01-02',
+          drawPeopleNumbers: 1,
+          drawGroup: 'All',
+          drawGender: 'All',
+          className: '2',
+        ),
+      ];
+
+      await service.saveHistory(records);
+      await service.clearHistoryRecords(className: '1');
+
+      final history = await service.loadHistory();
+      expect(history.length, 1);
+      expect(history.first.className, '2');
+      expect(history.first.name, 'Class2');
+    });
+
+    test('clear all history records', () async {
+      await Future.delayed(const Duration(milliseconds: 100));
+      final service = DataService();
+      final records = [
+        HistoryRecord(
+          id: 1,
+          name: 'Class1',
+          drawMethod: 1,
+          drawTime: '2023-01-01',
+          drawPeopleNumbers: 1,
+          drawGroup: 'All',
+          drawGender: 'All',
+          className: '1',
+        ),
+        HistoryRecord(
+          id: 2,
+          name: 'Class2',
+          drawMethod: 1,
+          drawTime: '2023-01-02',
+          drawPeopleNumbers: 1,
+          drawGroup: 'All',
+          drawGender: 'All',
+          className: '2',
+        ),
+      ];
+
+      await service.saveHistory(records);
+      await service.clearHistoryRecords();
+
+      final history = await service.loadHistory();
+      expect(history, isEmpty);
+    });
   });
 }
