@@ -60,6 +60,11 @@ class AppProvider with ChangeNotifier {
     _loadData();
   }
 
+  /// 重新加载所有数据（用于导入后刷新）
+  Future<void> reloadData() async {
+    await _loadData();
+  }
+
   Future<void> _loadData() async {
     _allStudents = await _dataService.loadStudents();
     _history = await _dataService.loadHistory();
