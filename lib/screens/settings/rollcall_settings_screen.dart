@@ -692,7 +692,19 @@ class _ClassStudentSettingsScreenState extends State<ClassStudentSettingsScreen>
   }
 
   Future<void> _editStudent(AppProvider provider, Student student) async {
-    final result = await _showStudentDialog(initialStudent: student);
+    final result = await _showStudentDialog(
+      initialStudent: student,
+      onDelete: () async {
+        try {
+          await provider.deleteStudentFromClass(_className, student.id);
+        } catch (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('删除学生失败')),
+          );
+        }
+      },
+    );
     if (result == null) return;
 
     try {
@@ -742,7 +754,7 @@ class _ClassStudentSettingsScreenState extends State<ClassStudentSettingsScreen>
     }
   }
 
-  Future<_StudentFormData?> _showStudentDialog({Student? initialStudent}) async {
+  Future<_StudentFormData?> _showStudentDialog({Student? initialStudent, Future<void> Function()? onDelete}) async {
     final nameController = TextEditingController(text: initialStudent?.name ?? '');
     final groupController = TextEditingController(text: initialStudent?.group ?? '1');
     String gender = initialStudent?.gender ?? '男';
@@ -823,26 +835,59 @@ class _ClassStudentSettingsScreenState extends State<ClassStudentSettingsScreen>
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                final group = groupController.text.trim().isEmpty ? '1' : groupController.text.trim();
-                if (name.isEmpty) return;
-                Navigator.pop(
-                  context,
-                  _StudentFormData(
-                    name: name,
-                    gender: gender,
-                    group: group,
-                    exist: exist,
+            Row(
+              children: [
+                if (initialStudent != null && onDelete != null)
+                  TextButton(
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    onPressed: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('确认删除'),
+                          content: Text('确定要删除学生 "${initialStudent.name}" 吗？'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('取消'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('删除'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed == true) {
+                        await onDelete();
+                        if (context.mounted) Navigator.pop(context);
+                      }
+                    },
+                    child: const Text('删除'),
                   ),
-                );
-              },
-              child: const Text('确定'),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('取消'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    final name = nameController.text.trim();
+                    final group = groupController.text.trim().isEmpty ? '1' : groupController.text.trim();
+                    if (name.isEmpty) return;
+                    Navigator.pop(
+                      context,
+                      _StudentFormData(
+                        name: name,
+                        gender: gender,
+                        group: group,
+                        exist: exist,
+                      ),
+                    );
+                  },
+                  child: const Text('确定'),
+                ),
+              ],
             ),
           ],
         ),
@@ -926,7 +971,12 @@ class _ClassStudentSettingsScreenState extends State<ClassStudentSettingsScreen>
           return ResponsiveGrid(
             children: students.map((student) {
               return Card(
+                clipBehavior: Clip.antiAlias,
                 child: ListTile(
+                  leading: CircleAvatar(
+                    child: Text(student.name.isNotEmpty ? student.name[0] : '?'),
+                  ),
+                  onTap: () => _editStudent(provider, student),
                   title: Text(
                     student.name,
                     style: TextStyle(
@@ -935,50 +985,10 @@ class _ClassStudentSettingsScreenState extends State<ClassStudentSettingsScreen>
                       color: student.exist ? null : Colors.grey,
                     ),
                   ),
-                  subtitle: Row(
-                    children: [
-                      Checkbox(
-                        value: student.exist,
-                        visualDensity: VisualDensity.compact,
-                        onChanged: (value) async {
-                          if (value == null) return;
-                          try {
-                            await provider.setStudentExistInClass(_className, student.id, value);
-                          } catch (_) {
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(this.context).showSnackBar(
-                              const SnackBar(content: Text('更新学生状态失败')),
-                            );
-                          }
-                        },
-                      ),
-                      Expanded(
-                        child: Text(
-                          '性别: ${student.gender} | 小组: ${student.group} | 学号: ${student.id}',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: student.exist ? null : Colors.grey,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  trailing: SizedBox(
-                    width: 96,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => _editStudent(provider, student),
-                          tooltip: '编辑',
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () => _deleteStudent(provider, student),
-                          tooltip: '删除',
-                        ),
-                      ],
+                  subtitle: Text(
+                    '性别: ${student.gender} | 小组: ${student.group} | 学号: ${student.id}',
+                    style: TextStyle(
+                      color: student.exist ? null : Colors.grey,
                     ),
                   ),
                 ),

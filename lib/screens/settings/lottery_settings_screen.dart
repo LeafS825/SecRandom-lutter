@@ -422,7 +422,7 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('确定'),
+            child: const Text('取消'),
           ),
         ],
       ),
@@ -745,7 +745,7 @@ class _PrizePoolSettingsScreenState extends State<PrizePoolSettingsScreen> {
     ).showSnackBar(SnackBar(content: Text('成功导入 ${result.length} 个奖品')));
   }
 
-  Future<void> _editPrize(Prize prize) async {
+  Future<void> _editPrize(Prize prize, {Future<void> Function()? onDelete}) async {
     final nameController = TextEditingController(text: prize.name);
     final weightController = TextEditingController(
       text: prize.weight.toString(),
@@ -777,27 +777,60 @@ class _PrizePoolSettingsScreenState extends State<PrizePoolSettingsScreen> {
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () {
-              final name = nameController.text.trim();
-              final weight = double.tryParse(weightController.text) ?? 1.0;
-              final count = int.tryParse(countController.text) ?? 1;
-              if (name.isNotEmpty) {
-                Navigator.pop(context, {
-                  'name': name,
-                  'weight': weight,
-                  'count': count,
-                });
-              }
-            },
-            child: const Text('确定'),
-          ),
-        ],
+          actions: [
+            Row(
+              children: [
+                if (onDelete != null)
+                  TextButton(
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    onPressed: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('确认删除'),
+                          content: Text('确定要删除奖品"${prize.name}"吗？'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('取消'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('删除'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed == true) {
+                        await onDelete();
+                        if (context.mounted) Navigator.pop(context);
+                      }
+                    },
+                    child: const Text('删除'),
+                  ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('取消'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    final name = nameController.text.trim();
+                    final weight = double.tryParse(weightController.text) ?? 1.0;
+                    final count = int.tryParse(countController.text) ?? 1;
+                    if (name.isNotEmpty) {
+                      Navigator.pop(context, {
+                        'name': name,
+                        'weight': weight,
+                        'count': count,
+                      });
+                    }
+                  },
+                  child: const Text('确定'),
+                ),
+              ],
+            ),
+          ],
       ),
     );
 
@@ -846,7 +879,9 @@ class _PrizePoolSettingsScreenState extends State<PrizePoolSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_pool.name)),
+      appBar: AppBar(
+        title: Text(_pool.name),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _prizes.isEmpty
@@ -875,7 +910,20 @@ class _PrizePoolSettingsScreenState extends State<PrizePoolSettingsScreen> {
           : ResponsiveGrid(
               children: _prizes.map((prize) {
                 return Card(
+                  clipBehavior: Clip.antiAlias,
                   child: ListTile(
+                    leading: CircleAvatar(
+                      child: Text(prize.name.isNotEmpty ? prize.name[0] : '?'),
+                    ),
+                    onTap: () => _editPrize(
+                      prize,
+                      onDelete: () async {
+                        setState(() {
+                          _prizes.removeWhere((p) => p.id == prize.id);
+                        });
+                        await _savePool();
+                      },
+                    ),
                     title: Text(
                       prize.name,
                       style: TextStyle(
@@ -886,74 +934,21 @@ class _PrizePoolSettingsScreenState extends State<PrizePoolSettingsScreen> {
                         color: prize.exist ? null : Colors.grey,
                       ),
                     ),
-                    subtitle: Row(
-                      children: [
-                        Checkbox(
-                          value: prize.exist,
-                          visualDensity: VisualDensity.compact,
-                          onChanged: (value) {
-                            if (value != null && mounted) {
-                              setState(() {
-                                final index = _prizes.indexWhere((p) => p.id == prize.id);
-                                if (index >= 0) {
-                                  _prizes[index] = prize.copyWith(exist: value);
-                                }
-                              });
-                              _savePool();
-                            }
-                          },
-                        ),
-                        Expanded(
-                          child: Text(
-                            '权重: ${prize.weight} | 数量: ${prize.count}',
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: prize.exist ? null : Colors.grey,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    trailing: SizedBox(
-                      width: 96,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () => _editPrize(prize),
-                            tooltip: '编辑',
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () => _deletePrize(prize),
-                            tooltip: '删除',
-                          ),
-                        ],
+                    subtitle: Text(
+                      '权重: ${prize.weight} | 数量: ${prize.count}',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: prize.exist ? null : Colors.grey,
                       ),
                     ),
                   ),
                 );
               }).toList(),
             ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            onPressed: _openQuickImport,
-            tooltip: '快速导入',
-            heroTag: 'quick-import-${_pool.name}',
-            child: const Icon(Icons.upload_file),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton(
-            onPressed: _addPrize,
-            tooltip: '添加奖品',
-            heroTag: 'add_prize_${_pool.name}',
-            child: const Icon(Icons.add),
-          ),
-        ],
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addPrize,
+        tooltip: '添加奖品',
+        child: const Icon(Icons.add),
       ),
     );
   }
