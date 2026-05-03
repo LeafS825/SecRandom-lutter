@@ -10,7 +10,7 @@ class AboutSettingsScreen extends StatelessWidget {
       'https://github.com/LeafS825/SecRandom-lutter';
   static const String _authorGithubUrl = 'https://github.com/LeafS825';
   static const String _organizationUrl = 'https://github.com/SECTL';
-  static const String _organizationWebsiteUrl = 'https://sectl.top';
+  static const String _organizationWebsiteUrl = 'https://sectl.cn';
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +89,7 @@ class AboutSettingsScreen extends StatelessWidget {
                 ListTile(
                   leading: const Icon(Icons.language_outlined),
                   title: const Text('组织官网'),
-                  subtitle: const Text('sectl.top'),
+                  subtitle: const Text('sectl.cn'),
                   trailing: const Icon(Icons.open_in_new),
                   onTap: _openOrganizationWebsite,
                 ),

@@ -16,34 +16,34 @@ class AuthConfig {
 
   static const String authCallbackBridgeUrl = String.fromEnvironment(
     'SECTL_AUTH_CALLBACK_BRIDGE_URL',
-    defaultValue: 'https://secrandom-lite.sectl.top/auth_callback',
+    defaultValue: 'https://secrandom-lite.sectl.cn/auth_callback',
   );
 
   static const String authCallbackWebUrl = String.fromEnvironment(
     'SECTL_AUTH_CALLBACK_WEB_URL',
-    defaultValue: 'https://secrandom-lite.sectl.top/auth_callback_web.html',
+    defaultValue: 'https://secrandom-lite.sectl.cn/auth_callback_web.html',
   );
 
   static const String authCallbackAndroidUrl = String.fromEnvironment(
     'SECTL_AUTH_CALLBACK_ANDROID_URL',
-    defaultValue: 'https://secrandom-lite.sectl.top/auth_callback_android.html',
+    defaultValue: 'https://secrandom-lite.sectl.cn/auth_callback_android.html',
   );
 
   static const String authCallbackWindowsUrl = String.fromEnvironment(
     'SECTL_AUTH_CALLBACK_WINDOWS_URL',
-    defaultValue: 'https://secrandom-lite.sectl.top/auth_callback_windows.html',
+    defaultValue: 'https://secrandom-lite.sectl.cn/auth_callback_windows.html',
   );
 
   static const String webAppUrl = String.fromEnvironment(
     'SECTL_WEB_APP_URL',
-    defaultValue: 'https://secrandom-lite.sectl.top/',
+    defaultValue: 'https://secrandom-lite.sectl.cn/',
   );
 
   static String get baseUrl =>
-      useMockAuth ? mockAuthBaseUrl : 'https://appwrite.sectl.top';
+      useMockAuth ? mockAuthBaseUrl : 'https://appwrite.sectl.cn';
 
   static String get authUrl =>
-      useMockAuth ? mockAuthBaseUrl : 'https://sectl.top';
+      useMockAuth ? mockAuthBaseUrl : 'https://sectl.cn';
 
   static const String authorizeEndpoint = '/oauth/authorize';
   static const String tokenEndpoint = '/api/oauth/token';
@@ -84,7 +84,7 @@ class AuthConfig {
   static String get oauthRedirectUri {
     if (useMockAuth &&
         authCallbackBridgeUrl ==
-            'https://secrandom-lite.sectl.top/auth_callback') {
+            'https://secrandom-lite.sectl.cn/auth_callback') {
       return '$mockAuthBaseUrl/auth_callback.html';
     }
     return authCallbackBridgeUrl;
@@ -93,7 +93,7 @@ class AuthConfig {
   static String get webOauthRedirectUri {
     if (useMockAuth &&
         authCallbackWebUrl ==
-            'https://secrandom-lite.sectl.top/auth_callback_web.html') {
+            'https://secrandom-lite.sectl.cn/auth_callback_web.html') {
       return '$mockAuthBaseUrl/auth_callback_web.html';
     }
     return authCallbackWebUrl;
@@ -102,7 +102,7 @@ class AuthConfig {
   static String get androidOauthRedirectUri {
     if (useMockAuth &&
         authCallbackAndroidUrl ==
-            'https://secrandom-lite.sectl.top/auth_callback_android.html') {
+            'https://secrandom-lite.sectl.cn/auth_callback_android.html') {
       return '$mockAuthBaseUrl/auth_callback_android.html';
     }
     return authCallbackAndroidUrl;
@@ -111,7 +111,7 @@ class AuthConfig {
   static String get windowsOauthRedirectUri {
     if (useMockAuth &&
         authCallbackWindowsUrl ==
-            'https://secrandom-lite.sectl.top/auth_callback_windows.html') {
+            'https://secrandom-lite.sectl.cn/auth_callback_windows.html') {
       return '$mockAuthBaseUrl/auth_callback_windows.html';
     }
     return authCallbackWindowsUrl;
