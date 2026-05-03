@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
+import 'package:provider/provider.dart';
+import '../../providers/app_provider.dart';
 import '../../services/data_export_service.dart';
 import '../../services/data_import_service.dart';
 
@@ -305,6 +307,9 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
 
       if (mounted) {
         if (success) {
+          // 刷新 AppProvider 数据
+          final appProvider = Provider.of<AppProvider>(context, listen: false);
+          await appProvider.reloadData();
           _showSnackBar('导入成功！');
         } else {
           _showSnackBar('导入失败，请重试', isError: true);
