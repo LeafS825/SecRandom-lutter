@@ -7,7 +7,7 @@ class AboutSettingsScreen extends StatelessWidget {
   static const String _appName = 'Secrandom Lite';
   static const String _version = 'v1.0.1';
   static const String _repositoryUrl =
-      'https://github.com/LeafS825/SecRandom-lutter';
+      'https://github.com/SECTL/SecRandom-Lite';
   static const String _authorGithubUrl = 'https://github.com/LeafS825';
   static const String _organizationUrl = 'https://github.com/SECTL';
   static const String _organizationWebsiteUrl = 'https://sectl.cn';
