@@ -14,20 +14,14 @@
 
 </div>
 
-> [!NOTE]
->
-> SecRandom Lite 是 [SecRandom](https://github.com/SECTL/SecRandom) 的 Flutter 跨平台版本
->
-> 基于 GNU GPLv3 协议开源，您可以修改源代码，但**必须将修改版本同样以 GNU GPLv3 协议开源**
-
 --------
 
-SecRandom Lite 是 SecRandom 的轻量级 Flutter 版本。
+SecRandom Lite 是 [SecRandom](https://github.com/SECTL/SecRandom) 的轻量级 Flutter 版本。
 
 - 继承了 SecRandom 的公平抽取等核心特性
 - 支持运行在 Android、iOS、Windows、macOS、Linux 和 Web
 - 采用 Material Design 3 设计规范
-- 基于 Flutter 构建，启动快、占用少
+- 基于 Flutter ，启动快、占用少
 
 
 ### 支持平台
