@@ -11,6 +11,11 @@ import '../../services/data_import_service.dart';
 import '../../services/log_service.dart';
 import 'log_viewer_screen.dart';
 
+/// DataManagementScreen - 数据管理页面
+///
+/// - 窄屏: 使用 Scaffold 完整页面，垂直列表
+/// - 宽屏: 使用 DataManagementBody 作为 SettingsLayout 的 Detail 区域
+///   - 采用三栏网格布局：导出数据、导入数据、日志管理
 class DataManagementScreen extends StatefulWidget {
   const DataManagementScreen({super.key});
 
@@ -19,11 +24,28 @@ class DataManagementScreen extends StatefulWidget {
 }
 
 class _DataManagementScreenState extends State<DataManagementScreen> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('数据管理')),
+      body: const DataManagementBody(),
+    );
+  }
+}
+
+/// 数据管理的主体内容，可嵌入 SettingsLayout 的 Detail 区域
+class DataManagementBody extends StatefulWidget {
+  const DataManagementBody({super.key});
+
+  @override
+  State<DataManagementBody> createState() => _DataManagementBodyState();
+}
+
+class _DataManagementBodyState extends State<DataManagementBody> {
   final DataExportService _exportService = DataExportService();
   final DataImportService _importService = DataImportService();
   final AppLogService _logService = AppLogService();
 
-  // 导出选项状态
   final Map<ExportType, bool> _exportOptions = {
     ExportType.history: true,
     ExportType.lottery: true,
@@ -35,7 +57,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
   bool _isExporting = false;
   bool _isImporting = false;
 
-  // 日志管理状态
   bool _loggingEnabled = true;
   int _logCount = 0;
   bool _isLoadingLogInfo = true;
@@ -58,62 +79,100 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('数据管理'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 900;
+
+        if (isWide) {
+          return _buildWideLayout();
+        } else {
+          return _buildNarrowLayout();
+        }
+      },
+    );
+  }
+
+  Widget _buildNarrowLayout() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _buildExportSectionCard(),
+        const SizedBox(height: 12),
+        _buildImportSectionCard(),
+        const SizedBox(height: 12),
+        _buildLogSectionCard(),
+      ],
+    );
+  }
+
+  Widget _buildWideLayout() {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildExportSection(),
-          const SizedBox(height: 3),
-          _buildImportSection(),
-          const SizedBox(height: 3),
-          _buildLogSection(),
+          Expanded(
+            child: _buildExportSectionCard(),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: _buildImportSectionCard(),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: _buildLogSectionCard(),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildExportSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.upload, color: Theme.of(context).colorScheme.primary),
-          title: Text(
-            '导出数据',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+  Widget _buildExportSectionCard() {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.upload, color: Theme.of(context).colorScheme.primary),
+              title: Text(
+                '导出数据',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: const Text('选择要导出的数据类型。'),
             ),
-          ),
-          subtitle: const Text('选择要导出的数据类型，导出的文件可用于备份或迁移到其他设备。'),
+            const SizedBox(height: 8),
+            ..._buildExportCheckboxes(),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _isExporting ? null : _handleExport,
+                icon: _isExporting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.download),
+                label: Text(_isExporting ? '导出中...' : '导出数据'),
+              ),
+            ),
+          ],
         ),
-        ..._buildExportCheckboxes(),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: _isExporting ? null : _handleExport,
-            icon: _isExporting 
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.download),
-            label: Text(_isExporting ? '导出中...' : '导出数据'),
-          ),
-        ),
-        const Divider(),
-      ],
+      ),
     );
   }
 
   List<Widget> _buildExportCheckboxes() {
     return _exportOptions.entries.map((entry) {
       return Padding(
-        padding: const EdgeInsets.only(bottom: 3),
+        padding: const EdgeInsets.only(bottom: 4),
         child: CheckboxListTile(
           title: Text(_getExportTypeLabel(entry.key)),
           subtitle: Text(_getExportTypeDescription(entry.key)),
@@ -125,41 +184,124 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
           },
           controlAffinity: ListTileControlAffinity.leading,
           contentPadding: EdgeInsets.zero,
+          dense: true,
         ),
       );
     }).toList();
   }
 
-  Widget _buildImportSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.download, color: Theme.of(context).colorScheme.primary),
-          title: Text(
-            '导入数据',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+  Widget _buildImportSectionCard() {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.download, color: Theme.of(context).colorScheme.primary),
+              title: Text(
+                '导入数据',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: const Text('从备份文件中恢复数据。'),
             ),
-          ),
-          subtitle: const Text('从之前导出的备份文件中恢复数据。支持.json和.zip格式。'),
+            const SizedBox(height: 8),
+            Text(
+              '支持 .json 和 .zip 格式的备份文件。导入前建议先导出当前数据作为备份。',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _isImporting ? null : _handleImport,
+                icon: _isImporting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.upload_file),
+                label: Text(_isImporting ? '导入中...' : '选择文件导入'),
+              ),
+            ),
+          ],
         ),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _isImporting ? null : _handleImport,
-            icon: _isImporting 
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.upload_file),
-            label: Text(_isImporting ? '导入中...' : '选择文件导入'),
-          ),
+      ),
+    );
+  }
+
+  Widget _buildLogSectionCard() {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.terminal, color: Theme.of(context).colorScheme.primary),
+              title: Text(
+                '日志管理',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: const Text('查看、导出或清除应用日志。'),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              title: const Text('记录日志'),
+              subtitle: Text(
+                _loggingEnabled ? '正在记录日志（已记录 $_logCount 条）' : '日志记录已关闭',
+              ),
+              value: _loggingEnabled,
+              onChanged: _isLoadingLogInfo ? null : _toggleLogging,
+              contentPadding: EdgeInsets.zero,
+            ),
+            if (_loggingEnabled) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoadingLogInfo || _logCount == 0 ? null : _viewLogs,
+                      icon: const Icon(Icons.visibility, size: 18),
+                      label: const Text('查看'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoadingLogInfo || _logCount == 0 ? null : _exportLogs,
+                      icon: const Icon(Icons.download, size: 18),
+                      label: const Text('导出'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoadingLogInfo || _logCount == 0 ? null : _clearLogs,
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      label: const Text('清除'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -208,7 +350,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
 
     try {
       if (kIsWeb) {
-        // Web 平台：下载文件
         final result = await _exportService.exportDataAsBytes(selectedTypes);
         _exportService.downloadFile(result.fileName, result.bytes);
         
@@ -216,17 +357,9 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
           _showSnackBar('导出成功！文件已开始下载');
         }
       } else {
-        // 桌面/移动平台：保存到本地
-        String? savePath;
-        if (selectedTypes.length == 1) {
-          savePath = await FilePicker.platform.getDirectoryPath(
-            dialogTitle: '选择导出保存位置',
-          );
-        } else {
-          savePath = await FilePicker.platform.getDirectoryPath(
-            dialogTitle: '选择导出保存位置',
-          );
-        }
+        String? savePath = await FilePicker.platform.getDirectoryPath(
+          dialogTitle: '选择导出保存位置',
+        );
 
         if (savePath == null) {
           setState(() => _isExporting = false);
@@ -257,7 +390,7 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json', 'zip'],
-        withData: kIsWeb, // Web 平台需要读取文件内容
+        withData: kIsWeb,
       );
 
       if (result == null || result.files.isEmpty) {
@@ -268,7 +401,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
       ImportResult importResult;
       
       if (kIsWeb) {
-        // Web 平台：使用文件内容
         final file = result.files.single;
         final bytes = file.bytes;
         if (bytes == null) {
@@ -278,7 +410,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
         }
         importResult = await _importService.importFromBytes(bytes, file.name);
       } else {
-        // 桌面/移动平台：使用文件路径
         final filePath = result.files.single.path;
         if (filePath == null) {
           _showSnackBar('无法获取文件路径', isError: true);
@@ -305,10 +436,7 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
         return;
       }
 
-      // 检查冲突
       final conflicts = await _importService.checkConflicts(importResult);
-      
-      // 显示预览和冲突处理对话框
       final strategy = await _showImportDialog(importResult, conflicts);
 
       if (strategy == null || !mounted) {
@@ -316,13 +444,11 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
         return;
       }
 
-      // 如果用户选择取消
       if (strategy == MergeStrategy.cancel) {
         setState(() => _isImporting = false);
         return;
       }
 
-      // 执行导入
       final options = ImportOptions(
         importHistory: importResult.historyRecords != null,
         importLottery: importResult.lotteryRecords != null,
@@ -336,7 +462,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
 
       if (mounted) {
         if (success) {
-          // 刷新 AppProvider 数据
           final appProvider = Provider.of<AppProvider>(context, listen: false);
           await appProvider.reloadData();
           _showSnackBar('导入成功！');
@@ -358,7 +483,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
   Future<MergeStrategy?> _showImportDialog(ImportResult result, List<ConflictInfo> conflicts) {
     final hasConflicts = conflicts.any((c) => c.hasConflict);
     
-    // 创建冲突映射，方便查找
     final conflictMap = <ConflictType, ConflictInfo>{};
     for (final conflict in conflicts) {
       conflictMap[conflict.type] = conflict;
@@ -376,7 +500,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
               const Text('将导入以下数据：'),
               const SizedBox(height: 16),
               
-              // 点名历史
               if (result.historyRecords != null && result.historyRecords!.isNotEmpty)
                 _buildConflictPreviewItem(
                   icon: Icons.history,
@@ -386,7 +509,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
                   conflict: conflictMap[ConflictType.history],
                 ),
               
-              // 抽奖历史
               if (result.lotteryRecords != null && result.lotteryRecords!.isNotEmpty)
                 _buildConflictPreviewItem(
                   icon: Icons.card_giftcard,
@@ -396,7 +518,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
                   conflict: conflictMap[ConflictType.lottery],
                 ),
               
-              // 应用配置
               if (result.config != null)
                 _buildPreviewItem(
                   Icons.settings,
@@ -404,7 +525,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
                   '主题、动画模式等设置',
                 ),
               
-              // 学生名单
               if (result.students != null && result.students!.isNotEmpty)
                 _buildConflictPreviewItem(
                   icon: Icons.people,
@@ -415,7 +535,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
                   showClassDetails: true,
                 ),
               
-              // 奖品名单
               if (result.prizePools != null && result.prizePools!.isNotEmpty) ...[
                 _buildConflictPreviewItem(
                   icon: Icons.card_giftcard,
@@ -567,7 +686,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
               ),
             ],
           ),
-          // 显示班级详情（仅学生名单）
           if (showClassDetails && conflict?.classStudents != null) ...[
             const SizedBox(height: 4),
             ...conflict!.classStudents!.map((cs) => Padding(
@@ -619,73 +737,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
     );
   }
 
-  // ========== 日志管理部分 ==========
-
-  Widget _buildLogSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.terminal, color: Theme.of(context).colorScheme.primary),
-          title: Text(
-            '日志管理',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          subtitle: const Text('查看、导出或清除应用运行日志。'),
-        ),
-        // 日志开关
-        SwitchListTile(
-          title: const Text('记录日志'),
-          subtitle: Text(
-            _loggingEnabled ? '正在记录日志（已记录 $_logCount 条）' : '日志记录已关闭',
-          ),
-          value: _loggingEnabled,
-          onChanged: _isLoadingLogInfo ? null : _toggleLogging,
-          contentPadding: EdgeInsets.zero,
-        ),
-        if (_loggingEnabled) ...[
-          const SizedBox(height: 8),
-          // 操作按钮
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _isLoadingLogInfo || _logCount == 0 ? null : _viewLogs,
-                  icon: const Icon(Icons.visibility),
-                  label: const Text('查看日志'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _isLoadingLogInfo || _logCount == 0 ? null : _exportLogs,
-                  icon: const Icon(Icons.download),
-                  label: const Text('导出日志'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _isLoadingLogInfo || _logCount == 0 ? null : _clearLogs,
-              icon: const Icon(Icons.delete_outline),
-              label: const Text('清除日志'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-              ),
-            ),
-          ),
-        ],
-        const Divider(),
-      ],
-    );
-  }
-
   Future<void> _toggleLogging(bool value) async {
     await _logService.setLoggingEnabled(value);
     setState(() => _loggingEnabled = value);
@@ -709,7 +760,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
       }
 
       if (kIsWeb) {
-        // Web 平台：下载文件
         final bytes = Uint8List.fromList(utf8.encode(logText));
         _exportService.downloadFile(
           'secrandom_logs_${DateTime.now().millisecondsSinceEpoch}.log',
@@ -719,7 +769,6 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
           _showSnackBar('日志导出成功！文件已开始下载');
         }
       } else {
-        // 桌面/移动平台：保存到本地
         final savePath = await FilePicker.platform.getDirectoryPath(
           dialogTitle: '选择日志保存位置',
         );

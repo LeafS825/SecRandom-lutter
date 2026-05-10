@@ -12,14 +12,31 @@ import 'file_import_preview_screen.dart';
 
 enum _EntryAction { edit, delete }
 
-class RollCallSettingsScreen extends StatefulWidget {
+/// RollCallSettingsScreen - 点名名单设置页面
+///
+/// - 窄屏: 使用 Scaffold 完整页面
+/// - 宽屏: 使用 RollCallSettingsBody 作为 SettingsLayout 的 Detail 区域
+class RollCallSettingsScreen extends StatelessWidget {
   const RollCallSettingsScreen({super.key});
 
   @override
-  State<RollCallSettingsScreen> createState() => _RollCallSettingsScreenState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('点名名单设置')),
+      body: const RollCallSettingsBody(),
+    );
+  }
 }
 
-class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
+/// 点名名单设置的主体内容，可嵌入 SettingsLayout 的 Detail 区域
+class RollCallSettingsBody extends StatefulWidget {
+  const RollCallSettingsBody({super.key});
+
+  @override
+  State<RollCallSettingsBody> createState() => _RollCallSettingsBodyState();
+}
+
+class _RollCallSettingsBodyState extends State<RollCallSettingsBody> {
   bool _isLoading = true;
   bool get _isMobilePlatform {
     if (kIsWeb) return false;
@@ -226,7 +243,6 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
   }
 
   Future<void> _showQuickImportDialog(AppProvider provider) async {
-    // 先让用户选择目标班级
     final selectedClass = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
@@ -259,25 +275,21 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
 
     String targetClass = selectedClass;
 
-    // 如果用户选择创建新班级
     if (selectedClass == '__create_new__') {
       if (!mounted) return;
       final newClassName = await _showCreateClassDialog(context);
       if (newClassName == null || newClassName.isEmpty) return;
 
-      // 检查班级是否已存在
       if (provider.groups.contains(newClassName)) {
         if (!mounted) return;
         _showErrorDialog('班级 "$newClassName" 已存在');
         return;
       }
 
-      // 创建新班级
       await provider.addClass(newClassName);
       targetClass = newClassName;
     }
 
-    // 选择导入方式
     if (!mounted) return;
     final importMethod = await showDialog<String>(
       context: context,
@@ -327,7 +339,6 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
     if (importMethod == null) return;
 
     if (importMethod == 'text') {
-      // 导航到文本导入页面
       if (!mounted) return;
       final importSuccess = await Navigator.push<bool>(
         context,
@@ -344,7 +355,6 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
       return;
     }
 
-    // 从文件导入
     FilePickerResult? result;
     try {
       result = await FilePicker.platform.pickFiles(
@@ -363,7 +373,6 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
     final file = result.files.single;
     final extension = file.name.split('.').last.toLowerCase();
 
-    // 显示加载指示器
     if (!mounted) return;
     showDialog(
       context: context,
@@ -401,9 +410,8 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
       }
 
       if (!mounted) return;
-      Navigator.pop(context); // 关闭加载指示器
+      Navigator.pop(context);
 
-      // 检查解析结果
       if (importResult.names.isEmpty) {
         if (!mounted) return;
         _showErrorDialog(
@@ -425,7 +433,6 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
         if (proceed != true) return;
       }
 
-      // 导航到预览页面
       if (!mounted) return;
       final importSuccess = await Navigator.push<bool>(
         context,
@@ -445,7 +452,7 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(context); // 关闭加载指示器（如果还在）
+      Navigator.pop(context);
       _showErrorDialog('文件解析失败: ${e.toString()}');
     }
   }
@@ -528,126 +535,141 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('点名名单设置'),
-        actions: [
-          Consumer<AppProvider>(
-            builder: (context, provider, _) => TextButton.icon(
-              onPressed: () => _showQuickImportDialog(provider),
-              icon: const Icon(Icons.file_upload),
-              label: const Text('快速导入'),
+    return Stack(
+      children: [
+        Consumer<AppProvider>(
+          builder: (context, provider, _) {
+            final classNames = provider.groups;
+            final students = provider.allStudents;
+
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '班级列表',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => _showQuickImportDialog(provider),
+                        icon: const Icon(Icons.file_upload, size: 18),
+                        label: const Text('快速导入'),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : classNames.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.class_outlined,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                '暂无班级',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '点击右下角 + 按钮创建新班级',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ResponsiveGrid(
+                          padding: const EdgeInsets.all(16),
+                          children: classNames.map((className) {
+                            final classStudents = students.where((s) => s.className == className).toList();
+                            final existingCount = classStudents.where((s) => s.exist).length;
+                            final totalCount = classStudents.length;
+
+                            return Card(
+                              child: GestureDetector(
+                                onLongPressStart: _isMobilePlatform
+                                    ? (details) async {
+                                        await _showClassActionMenuAtPosition(
+                                          provider,
+                                          className,
+                                          totalCount,
+                                          details.globalPosition,
+                                        );
+                                      }
+                                    : null,
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: Theme.of(context).colorScheme.primary,
+                                    child: Text(
+                                      className.isEmpty ? '?' : className[0].toUpperCase(),
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    className,
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  subtitle: Text('学生数量: $existingCount | 总数: $totalCount'),
+                                  trailing: _isMobilePlatform
+                                      ? null
+                                      : PopupMenuButton<_EntryAction>(
+                                          tooltip: '更多',
+                                          onSelected: (action) =>
+                                              _handleClassAction(provider, className, totalCount, action),
+                                          itemBuilder: (context) => const [
+                                            PopupMenuItem<_EntryAction>(
+                                              value: _EntryAction.edit,
+                                              child: Text('编辑'),
+                                            ),
+                                            PopupMenuItem<_EntryAction>(
+                                              value: _EntryAction.delete,
+                                              child: Text('删除'),
+                                            ),
+                                          ],
+                                          icon: const Icon(Icons.more_vert),
+                                        ),
+                                  onTap: () => _openClass(className),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                ),
+              ],
+            );
+          },
+        ),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: Consumer<AppProvider>(
+            builder: (context, provider, _) => FloatingActionButton(
+              onPressed: () => _addClass(provider),
+              tooltip: '新建班级',
+              child: const Icon(Icons.add),
             ),
           ),
-        ],
-      ),
-      body: Consumer<AppProvider>(
-        builder: (context, provider, _) {
-          final classNames = provider.groups;
-          final students = provider.allStudents;
-
-          return Column(
-            children: [
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : classNames.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.class_outlined,
-                              size: 64,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              '暂无班级',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '点击右下角 + 按钮创建新班级',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ResponsiveGrid(
-                        padding: const EdgeInsets.all(16),
-                        children: classNames.map((className) {
-                          final classStudents = students.where((s) => s.className == className).toList();
-                          final existingCount = classStudents.where((s) => s.exist).length;
-                          final totalCount = classStudents.length;
-
-                          return Card(
-                            child: GestureDetector(
-                              onLongPressStart: _isMobilePlatform
-                                  ? (details) async {
-                                      await _showClassActionMenuAtPosition(
-                                        provider,
-                                        className,
-                                        totalCount,
-                                        details.globalPosition,
-                                      );
-                                    }
-                                  : null,
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Theme.of(context).colorScheme.primary,
-                                  child: Text(
-                                    className.isEmpty ? '?' : className[0].toUpperCase(),
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                                title: Text(
-                                  className,
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                subtitle: Text('学生数量: $existingCount | 总数: $totalCount'),
-                                trailing: _isMobilePlatform
-                                    ? null
-                                    : PopupMenuButton<_EntryAction>(
-                                        tooltip: '更多',
-                                        onSelected: (action) =>
-                                            _handleClassAction(provider, className, totalCount, action),
-                                        itemBuilder: (context) => const [
-                                          PopupMenuItem<_EntryAction>(
-                                            value: _EntryAction.edit,
-                                            child: Text('编辑'),
-                                          ),
-                                          PopupMenuItem<_EntryAction>(
-                                            value: _EntryAction.delete,
-                                            child: Text('删除'),
-                                          ),
-                                        ],
-                                        icon: const Icon(Icons.more_vert),
-                                      ),
-                                onTap: () => _openClass(className),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-              ),
-            ],
-          );
-        },
-      ),
-      floatingActionButton: Consumer<AppProvider>(
-        builder: (context, provider, _) => FloatingActionButton(
-          onPressed: () => _addClass(provider),
-          tooltip: '新建班级',
-          child: const Icon(Icons.add),
         ),
-      ),
+      ],
     );
   }
 }

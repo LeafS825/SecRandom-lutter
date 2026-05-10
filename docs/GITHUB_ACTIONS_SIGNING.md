@@ -63,7 +63,7 @@
 
 ```bash
 # 使用 apksigner
-apksigner verify --print-certs SecRandom_lutter_0.0.3_android.apk
+apksigner verify --print-certs SecRandom_Lite_0.0.3_android.apk
 
 # 输出应该显示：
 # Verified using v1 scheme (JAR signing): true

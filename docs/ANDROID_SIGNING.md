@@ -106,10 +106,10 @@ base64 -i release-keystore.jks | pbcopy
 
 ```bash
 # 使用 apksigner 验证
-apksigner verify --print-certs SecRandom_lutter_0.0.3_android.apk
+apksigner verify --print-certs SecRandom_Lite_0.0.3_android.apk
 
 # 或使用 jarsigner
-jarsigner -verify -verbose -certs SecRandom_lutter_0.0.3_android.apk
+jarsigner -verify -verbose -certs SecRandom_Lite_0.0.3_android.apk
 ```
 
 ## 注意事项
@@ -146,7 +146,7 @@ jarsigner -verify -verbose -certs SecRandom_lutter_0.0.3_android.apk
 
 检查签名是否正确：
 ```bash
-apksigner verify SecRandom_lutter_0.0.3_android.apk
+apksigner verify SecRandom_Lite_0.0.3_android.apk
 ```
 
 ### Base64 编码错误

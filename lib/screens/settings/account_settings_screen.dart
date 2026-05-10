@@ -1,49 +1,135 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../providers/auth_provider.dart';
+export '../../providers/auth_provider.dart';
 
+/// 账户功能是否启用
+/// 通过环境变量控制: flutter run --dart-define=ACCOUNT_ENABLED=true
+const bool kAccountEnabled = bool.fromEnvironment(
+  'ACCOUNT_ENABLED',
+  defaultValue: false,
+);
+
+/// AccountSettingsScreen - 账户设置页面
+///
+/// - 窄屏: 使用 Scaffold 完整页面
+/// - 宽屏: 使用 AccountSettingsBody 作为 SettingsLayout 的 Detail 区域
+///   - 采用双栏布局：左栏用户信息，右栏账户详情
 class AccountSettingsScreen extends StatelessWidget {
   const AccountSettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('账户设置')),
+      body: const AccountSettingsBody(),
+    );
+  }
+}
+
+/// 账户设置的主体内容，可嵌入 SettingsLayout 的 Detail 区域
+class AccountSettingsBody extends StatelessWidget {
+  const AccountSettingsBody({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!kAccountEnabled && !kDebugMode) {
+      return _buildComingSoon(context);
+    }
+
     final authProvider = context.watch<AuthProvider>();
     final userInfo = authProvider.userInfo;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('账户设置'),
-      ),
-      body: ListView(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 600;
+
+        if (isWide) {
+          return _buildWideLayout(context, userInfo);
+        } else {
+          return _buildNarrowLayout(context, userInfo);
+        }
+      },
+    );
+  }
+
+  Widget _buildComingSoon(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 用户信息卡片
-          _buildUserInfoCard(context, userInfo),
-
-          const SizedBox(height: 16),
-
-          // 账户详情
-          _buildAccountDetails(context, userInfo),
-
-          const SizedBox(height: 32),
-
-          // 退出登录按钮
-          _buildLogoutButton(context),
-
-          const SizedBox(height: 16),
+          Icon(
+            Icons.cloud_off_outlined,
+            size: 80,
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            '账户功能暂未开放',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '敬请期待',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildUserInfoCard(BuildContext context, userInfo) {
+  Widget _buildNarrowLayout(BuildContext context, userInfo) {
+    return ListView(
+      children: [
+        _buildUserInfoCard(context, userInfo),
+        const SizedBox(height: 16),
+        _buildAccountDetailsCard(context, userInfo),
+        const SizedBox(height: 32),
+        _buildLogoutButton(context),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildWideLayout(BuildContext context, userInfo) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 4,
+            child: Column(
+              children: [
+                _buildUserInfoCard(context, userInfo, isCompact: false),
+                const SizedBox(height: 24),
+                _buildLogoutButton(context),
+              ],
+            ),
+          ),
+          const SizedBox(width: 24),
+          Expanded(
+            flex: 6,
+            child: _buildAccountDetailsCard(context, userInfo),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserInfoCard(BuildContext context, userInfo, {bool isCompact = true}) {
     return Card(
-      margin: const EdgeInsets.all(16),
+      margin: isCompact ? const EdgeInsets.all(16) : EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            // 大头像
             CircleAvatar(
               radius: 50,
               backgroundImage: userInfo?.avatarUrl != null
@@ -57,13 +143,11 @@ class AccountSettingsScreen extends StatelessWidget {
                   : null,
             ),
             const SizedBox(height: 16),
-            // 用户名
             Text(
               userInfo?.name ?? '用户',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 4),
-            // 邮箱
             Text(
               userInfo?.email ?? '',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -76,7 +160,7 @@ class AccountSettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAccountDetails(BuildContext context, userInfo) {
+  Widget _buildAccountDetailsCard(BuildContext context, userInfo) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -151,12 +235,12 @@ class AccountSettingsScreen extends StatelessWidget {
   void _handleLogout(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('退出登录'),
         content: const Text('确定要退出登录吗？本地数据将保留。'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('取消'),
           ),
           FilledButton(
@@ -164,9 +248,12 @@ class AccountSettingsScreen extends StatelessWidget {
               final authProvider = context.read<AuthProvider>();
               await authProvider.logout();
               if (context.mounted) {
-                Navigator.pop(context); // 关闭对话框
-                Navigator.pop(context); // 返回设置页面
-
+                Navigator.pop(dialogContext);
+                // 在 SettingsLayout 的 Detail 区域中不需要再 pop 两层
+                // 只有在独立页面时才需要
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('已退出登录')),
                 );

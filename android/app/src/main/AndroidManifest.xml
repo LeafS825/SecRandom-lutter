@@ -2,7 +2,7 @@
     <!-- Required for OAuth login loopback server -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="Secrandom Lite"
+        android:label="SecRandom Lite"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -1,11 +1,11 @@
 {
-    "name": "secrandom_lutter",
-    "short_name": "secrandom_lutter",
+    "name": "SecRandom Lite",
+    "short_name": "SecRandom Lite",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "基于 Material Design 3 的随机点名应用。",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

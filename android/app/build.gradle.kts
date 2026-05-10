@@ -23,7 +23,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.leafs825.secrandom_lutter"
+    namespace = "com.leafs825.secrandom_lite"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -38,7 +38,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.leafs825.secrandom_lutter"
+        applicationId = "com.leafs825.secrandom_lite"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

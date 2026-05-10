@@ -13,14 +13,30 @@ import 'file_prize_import_preview_screen.dart';
 
 enum _EntryAction { edit, delete }
 
-class LotterySettingsScreen extends StatefulWidget {
+/// LotterySettingsScreen - 抽奖设置页面
+///
+/// - 窄屏: 使用 Scaffold 完整页面
+/// - 宽屏: 使用 LotterySettingsBody 作为 SettingsLayout 的 Detail 区域
+class LotterySettingsScreen extends StatelessWidget {
   const LotterySettingsScreen({super.key});
 
   @override
-  State<LotterySettingsScreen> createState() => _LotterySettingsScreenState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('抽奖设置')),
+      body: const LotterySettingsBody(),
+    );
+  }
 }
 
-class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
+class LotterySettingsBody extends StatefulWidget {
+  const LotterySettingsBody({super.key});
+
+  @override
+  State<LotterySettingsBody> createState() => _LotterySettingsBodyState();
+}
+
+class _LotterySettingsBodyState extends State<LotterySettingsBody> {
   final LotteryService _lotteryService = LotteryService();
   List<PrizePool> _prizePools = [];
   Map<String, List<Prize>> _poolPrizes = {};
@@ -65,54 +81,6 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
         setState(() {
           _isLoading = false;
         });
-      }
-    }
-  }
-
-  Future<void> _addPrizePool() async {
-    final nameController = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('新建奖池'),
-        content: TextField(
-          controller: nameController,
-          decoration: const InputDecoration(
-            labelText: '奖池名称',
-            hintText: '请输入奖池名称',
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, nameController.text),
-            child: const Text('确定'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != null && result.isNotEmpty) {
-      final newPool = PrizePool(name: result);
-      try {
-        await _lotteryService.savePrizePool(newPool);
-        await _loadPrizePools();
-        if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PrizePoolSettingsScreen(pool: newPool),
-            ),
-          ).then((_) {
-            if (mounted) _loadPrizePools();
-          });
-        }
-      } catch (e) {
-        // 保存奖池失败，忽略错误
       }
     }
   }
@@ -246,8 +214,55 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
     await _handlePoolAction(pool, action);
   }
 
+  Future<void> _addPrizePool() async {
+    final nameController = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('新建奖池'),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            labelText: '奖池名称',
+            hintText: '请输入奖池名称',
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, nameController.text),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      final newPool = PrizePool(name: result);
+      try {
+        await _lotteryService.savePrizePool(newPool);
+        await _loadPrizePools();
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PrizePoolSettingsScreen(pool: newPool),
+            ),
+          ).then((_) {
+            if (mounted) _loadPrizePools();
+          });
+        }
+      } catch (e) {
+        // 保存奖池失败，忽略错误
+      }
+    }
+  }
+
   Future<void> _showQuickImportDialog() async {
-    // 先让用户选择目标奖池
     final selectedPool = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
@@ -280,27 +295,23 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
 
     String targetPool = selectedPool;
 
-    // 如果用户选择创建新奖池
     if (selectedPool == '__create_new__') {
       if (!mounted) return;
       final newPoolName = await _showCreatePoolDialog(context);
       if (newPoolName == null || newPoolName.isEmpty) return;
 
-      // 检查奖池是否已存在
       if (_prizePools.any((p) => p.name == newPoolName)) {
         if (!mounted) return;
         _showErrorDialog('奖池 "$newPoolName" 已存在');
         return;
       }
 
-      // 创建新奖池
       final newPool = PrizePool(name: newPoolName);
       await _lotteryService.savePrizePool(newPool);
       await _loadPrizePools();
       targetPool = newPoolName;
     }
 
-    // 选择文件
     FilePickerResult? result;
     try {
       result = await FilePicker.platform.pickFiles(
@@ -319,7 +330,6 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
     final file = result.files.single;
     final extension = file.name.split('.').last.toLowerCase();
 
-    // 显示加载指示器
     if (!mounted) return;
     showDialog(
       context: context,
@@ -357,9 +367,8 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
       }
 
       if (!mounted) return;
-      Navigator.pop(context); // 关闭加载指示器
+      Navigator.pop(context);
 
-      // 检查解析结果
       if (importResult.names.isEmpty) {
         if (!mounted) return;
         _showErrorDialog(
@@ -381,7 +390,6 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
         if (proceed != true) return;
       }
 
-      // 导航到预览页面
       if (!mounted) return;
       final importedPrizes = await Navigator.push<List<Prize>>(
         context,
@@ -394,7 +402,6 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
       );
 
       if (importedPrizes != null && importedPrizes.isNotEmpty && mounted) {
-        // 保存导入的奖品
         final existingPrizes = await _lotteryService.loadPrizes(targetPool);
         existingPrizes.addAll(importedPrizes);
         await _lotteryService.savePrizes(targetPool, existingPrizes);
@@ -407,7 +414,7 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(context); // 关闭加载指示器（如果还在）
+      Navigator.pop(context);
       _showErrorDialog('文件解析失败: ${e.toString()}');
     }
   }
@@ -490,114 +497,131 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('抽奖设置'),
-        actions: [
-          TextButton.icon(
-            onPressed: () => _showQuickImportDialog(),
-            icon: const Icon(Icons.file_upload),
-            label: const Text('快速导入'),
-          ),
-        ],
-      ),
-      body: Consumer<AppProvider>(
-        builder: (context, appProvider, _) {
-          return Column(
-            children: [
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _prizePools.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.card_giftcard_outlined,
-                              size: 64,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              '暂无奖池',
-                              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '点击右下角 + 按钮创建新奖池',
-                              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                            ),
-                          ],
+    return Stack(
+      children: [
+        Consumer<AppProvider>(
+          builder: (context, appProvider, _) {
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '奖池列表',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      )
-                    : ResponsiveGrid(
-                        padding: const EdgeInsets.all(16),
-                        children: _prizePools.map((pool) {
-                          final prizes = _poolPrizes[pool.name] ?? [];
-                          final prizeCount = prizes.where((p) => p.exist).length;
-                          final totalCount = _lotteryService.getPrizeTotalCount(
-                            pool,
-                            prizes,
-                          );
-
-                          return Card(
-                            child: GestureDetector(
-                              onLongPressStart: _isMobilePlatform
-                                  ? (details) async {
-                                      await _showPoolActionMenuAtPosition(
-                                        pool,
-                                        details.globalPosition,
-                                      );
-                                    }
-                                  : null,
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Theme.of(context).colorScheme.primary,
-                                  child: Text(
-                                    pool.name[0].toUpperCase(),
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                ),
-                                title: Text(
-                                  pool.name,
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                subtitle: Text('奖品数量: $prizeCount | 总数: $totalCount'),
-                                trailing: _isMobilePlatform
-                                    ? null
-                                    : PopupMenuButton<_EntryAction>(
-                                        tooltip: '更多',
-                                        onSelected: (action) =>
-                                            _handlePoolAction(pool, action),
-                                        itemBuilder: (context) => const [
-                                          PopupMenuItem<_EntryAction>(
-                                            value: _EntryAction.edit,
-                                            child: Text('编辑'),
-                                          ),
-                                          PopupMenuItem<_EntryAction>(
-                                            value: _EntryAction.delete,
-                                            child: Text('删除'),
-                                          ),
-                                        ],
-                                        icon: const Icon(Icons.more_vert),
-                                      ),
-                                onTap: () => _editPrizePool(pool),
-                              ),
-                            ),
-                          );
-                        }).toList(),
                       ),
-              ),
-            ],
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addPrizePool,
-        tooltip: '新建奖池',
-        child: const Icon(Icons.add),
-      ),
+                      TextButton.icon(
+                        onPressed: _showQuickImportDialog,
+                        icon: const Icon(Icons.file_upload, size: 18),
+                        label: const Text('快速导入'),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _prizePools.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.card_giftcard_outlined,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                '暂无奖池',
+                                style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '点击右下角 + 按钮创建新奖池',
+                                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ResponsiveGrid(
+                          padding: const EdgeInsets.all(16),
+                          children: _prizePools.map((pool) {
+                            final prizes = _poolPrizes[pool.name] ?? [];
+                            final prizeCount = prizes.where((p) => p.exist).length;
+                            final totalCount = _lotteryService.getPrizeTotalCount(
+                              pool,
+                              prizes,
+                            );
+
+                            return Card(
+                              child: GestureDetector(
+                                onLongPressStart: _isMobilePlatform
+                                    ? (details) async {
+                                        await _showPoolActionMenuAtPosition(
+                                          pool,
+                                          details.globalPosition,
+                                        );
+                                      }
+                                    : null,
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: Theme.of(context).colorScheme.primary,
+                                    child: Text(
+                                      pool.name[0].toUpperCase(),
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    pool.name,
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  subtitle: Text('奖品数量: $prizeCount | 总数: $totalCount'),
+                                  trailing: _isMobilePlatform
+                                      ? null
+                                      : PopupMenuButton<_EntryAction>(
+                                          tooltip: '更多',
+                                          onSelected: (action) =>
+                                              _handlePoolAction(pool, action),
+                                          itemBuilder: (context) => const [
+                                            PopupMenuItem<_EntryAction>(
+                                              value: _EntryAction.edit,
+                                              child: Text('编辑'),
+                                            ),
+                                            PopupMenuItem<_EntryAction>(
+                                              value: _EntryAction.delete,
+                                              child: Text('删除'),
+                                            ),
+                                          ],
+                                          icon: const Icon(Icons.more_vert),
+                                        ),
+                                  onTap: () => _editPrizePool(pool),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                ),
+              ],
+            );
+          },
+        ),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: FloatingActionButton(
+            onPressed: _addPrizePool,
+            tooltip: '新建奖池',
+            child: const Icon(Icons.add),
+          ),
+        ),
+      ],
     );
   }
 }

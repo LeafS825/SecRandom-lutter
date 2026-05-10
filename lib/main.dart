@@ -24,7 +24,7 @@ class MainApp extends StatelessWidget {
     final appProvider = Provider.of<AppProvider>(context);
 
     return MaterialApp(
-      title: 'Secrandom Lite',
+      title: 'SecRandom Lite',
       themeMode: appProvider.themeMode,
       theme: ThemeData(
         useMaterial3: true,
