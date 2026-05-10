@@ -246,7 +246,7 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
     await _handlePoolAction(pool, action);
   }
 
-  Future<void> _showQuickImportDialog(BuildContext context) async {
+  Future<void> _showQuickImportDialog() async {
     // 先让用户选择目标奖池
     final selectedPool = await showDialog<String>(
       context: context,
@@ -282,6 +282,7 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
 
     // 如果用户选择创建新奖池
     if (selectedPool == '__create_new__') {
+      if (!mounted) return;
       final newPoolName = await _showCreatePoolDialog(context);
       if (newPoolName == null || newPoolName.isEmpty) return;
 
@@ -331,8 +332,9 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
       switch (extension) {
         case 'xlsx':
           if (file.bytes == null) {
-            if (mounted) Navigator.pop(context);
-            if (mounted) _showErrorDialog('无法读取文件内容');
+            if (!mounted) return;
+            Navigator.pop(context);
+            _showErrorDialog('无法读取文件内容');
             return;
           }
           importResult = await ExcelImportService.parsePrizeExcel(file.bytes!);
@@ -340,29 +342,31 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
         case 'txt':
           final bytes = file.bytes;
           if (bytes == null) {
-            if (mounted) Navigator.pop(context);
-            if (mounted) _showErrorDialog('无法读取文件内容');
+            if (!mounted) return;
+            Navigator.pop(context);
+            _showErrorDialog('无法读取文件内容');
             return;
           }
           importResult = await ExcelImportService.parsePrizeTxt(utf8.decode(bytes));
           break;
         default:
-          if (mounted) Navigator.pop(context);
-          if (mounted) _showErrorDialog('不支持的文件格式，请使用 .xlsx 或 .txt 文件');
+          if (!mounted) return;
+          Navigator.pop(context);
+          _showErrorDialog('不支持的文件格式，请使用 .xlsx 或 .txt 文件');
           return;
       }
 
-      if (mounted) Navigator.pop(context); // 关闭加载指示器
+      if (!mounted) return;
+      Navigator.pop(context); // 关闭加载指示器
 
       // 检查解析结果
       if (importResult.names.isEmpty) {
-        if (mounted) {
-          _showErrorDialog(
-            importResult.errors.isNotEmpty
-                ? '文件解析失败: ${importResult.errors.first}'
-                : '文件中没有找到有效的奖品数据',
-          );
-        }
+        if (!mounted) return;
+        _showErrorDialog(
+          importResult.errors.isNotEmpty
+              ? '文件解析失败: ${importResult.errors.first}'
+              : '文件中没有找到有效的奖品数据',
+        );
         return;
       }
 
@@ -378,6 +382,7 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
       }
 
       // 导航到预览页面
+      if (!mounted) return;
       final importedPrizes = await Navigator.push<List<Prize>>(
         context,
         MaterialPageRoute(
@@ -395,13 +400,13 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
         await _lotteryService.savePrizes(targetPool, existingPrizes);
         await _loadPrizePools();
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('成功导入 ${importedPrizes.length} 个奖品')),
-          );
-        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('成功导入 ${importedPrizes.length} 个奖品')),
+        );
       }
     } catch (e) {
+      if (!mounted) return;
       Navigator.pop(context); // 关闭加载指示器（如果还在）
       _showErrorDialog('文件解析失败: ${e.toString()}');
     }
@@ -490,7 +495,7 @@ class _LotterySettingsScreenState extends State<LotterySettingsScreen> {
         title: const Text('抽奖设置'),
         actions: [
           TextButton.icon(
-            onPressed: () => _showQuickImportDialog(context),
+            onPressed: () => _showQuickImportDialog(),
             icon: const Icon(Icons.file_upload),
             label: const Text('快速导入'),
           ),
@@ -727,24 +732,6 @@ class _PrizePoolSettingsScreenState extends State<PrizePoolSettingsScreen> {
     }
   }
 
-  Future<void> _openQuickImport() async {
-    final result = await Navigator.push<List<Prize>>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PrizeImportScreen(poolName: _pool.name),
-      ),
-    );
-    if (result == null || result.isEmpty || !mounted) return;
-    setState(() {
-      _prizes.addAll(result);
-    });
-    await _savePool();
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('成功导入 ${result.length} 个奖品')));
-  }
-
   Future<void> _editPrize(Prize prize, {Future<void> Function()? onDelete}) async {
     final nameController = TextEditingController(text: prize.name);
     final weightController = TextEditingController(
@@ -844,33 +831,6 @@ class _PrizePoolSettingsScreenState extends State<PrizePoolSettingsScreen> {
             count: result['count'],
           );
         }
-      });
-      await _savePool();
-    }
-  }
-
-  Future<void> _deletePrize(Prize prize) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要删除奖品"${prize.name}"吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      setState(() {
-        _prizes.removeWhere((p) => p.id == prize.id);
       });
       await _savePool();
     }

@@ -8,6 +8,7 @@ import '../models/student.dart';
 import '../models/history_record.dart';
 import '../models/app_config.dart';
 import '../models/lottery_record.dart';
+import '../utils/logger.dart';
 
 class DataService {
   static const String _dataDirName = 'data';
@@ -51,7 +52,7 @@ class DataService {
       try {
         html.window.localStorage[key] = value;
       } catch (e) {
-        print('Error saving to localStorage: $e');
+        logger.e('保存到localStorage失败', error: e);
       }
     }
   }
@@ -61,7 +62,7 @@ class DataService {
       try {
         return html.window.localStorage[key];
       } catch (e) {
-        print('Error reading from localStorage: $e');
+        logger.e('从localStorage读取失败', error: e);
         return null;
       }
     }
@@ -145,13 +146,13 @@ class DataService {
         final String jsonData = const JsonEncoder.withIndent('  ').convert(dataMap);
         
         if (jsonData.length > 1000000) {
-          print('Warning: Students data is large (${jsonData.length} chars), may cause performance issues');
+          logger.w('学生数据量较大 (${jsonData.length} 字符)，可能影响性能');
         }
         
         _setWebStorage(_studentsFileName, jsonData);
       }
     } catch (e) {
-      print('Error saving students: $e');
+      logger.e('保存学生数据失败', error: e);
       rethrow;
     }
   }
@@ -314,13 +315,13 @@ class DataService {
         final String jsonData = const JsonEncoder.withIndent('  ').convert(dataMap);
         
         if (jsonData.length > 1000000) {
-          print('Warning: History data is large (${jsonData.length} chars), may cause performance issues');
+          logger.w('历史数据量较大 (${jsonData.length} 字符)，可能影响性能');
         }
         
         _setWebStorage(_historyFileName, jsonData);
       }
     } catch (e) {
-      print('Error saving history: $e');
+      logger.e('保存历史记录失败', error: e);
       rethrow;
     }
   }
@@ -424,13 +425,13 @@ class DataService {
         final String jsonData = const JsonEncoder.withIndent('  ').convert(dataMap);
         
         if (jsonData.length > 1000000) {
-          print('Warning: History data is large (${jsonData.length} chars), may cause performance issues');
+          logger.w('历史数据量较大 (${jsonData.length} 字符)，可能影响性能');
         }
         
         _setWebStorage(_historyFileName, jsonData);
       }
     } catch (e) {
-      print('Error adding history record: $e');
+      logger.e('添加历史记录失败', error: e);
       rethrow;
     }
   }
@@ -480,13 +481,13 @@ class DataService {
         final String jsonData = const JsonEncoder.withIndent('  ').convert(dataMap);
 
         if (jsonData.length > 1000000) {
-          print('Warning: History data is large (${jsonData.length} chars), may cause performance issues');
+          logger.w('历史数据量较大 (${jsonData.length} 字符)，可能影响性能');
         }
 
         _setWebStorage(_historyFileName, jsonData);
       }
     } catch (e) {
-      print('Error clearing history records: $e');
+      logger.e('清除历史记录失败', error: e);
       rethrow;
     }
   }
@@ -503,13 +504,13 @@ class DataService {
         final String jsonData = _encodeConfig(config);
         
         if (jsonData.length > 1000000) {
-          print('Warning: Config data is large (${jsonData.length} chars), may cause performance issues');
+          logger.w('配置数据量较大 (${jsonData.length} 字符)，可能影响性能');
         }
         
         _setWebStorage(_configFileName, jsonData);
       }
     } catch (e) {
-      print('Error saving config: $e');
+      logger.e('保存配置失败', error: e);
       rethrow;
     }
   }
@@ -577,13 +578,13 @@ class DataService {
         final String jsonData = const JsonEncoder.withIndent('  ').convert(poolData);
         
         if (jsonData.length > 1000000) {
-          print('Warning: Prize data is large (${jsonData.length} chars), may cause performance issues');
+          logger.w('奖池数据量较大 (${jsonData.length} 字符)，可能影响性能');
         }
         
         _setWebStorage('prize_$poolName.json', jsonData);
       }
     } catch (e) {
-      print('Error saving prize pool: $e');
+      logger.e('保存奖池数据失败', error: e);
       rethrow;
     }
   }
@@ -608,7 +609,7 @@ class DataService {
         return json.decode(jsonData) as Map<String, dynamic>;
       }
     } catch (e) {
-      print('Error loading prize pool: $e');
+      logger.e('加载奖池数据失败', error: e);
       return {};
     }
   }
@@ -624,7 +625,7 @@ class DataService {
         _setWebStorage('prize_$poolName.json', '');
       }
     } catch (e) {
-      print('Error deleting prize pool: $e');
+      logger.e('删除奖池数据失败', error: e);
       rethrow;
     }
   }
@@ -655,7 +656,7 @@ class DataService {
                   pools.add(poolData);
                 }
               } catch (e) {
-                print('Error loading pool $fileName: $e');
+                logger.e('加载奖池文件失败: $fileName', error: e);
               }
             }
           }
@@ -676,18 +677,18 @@ class DataService {
                   pools.add(poolData);
                 }
               } catch (e) {
-                print('Error loading pool $key: $e');
+                logger.e('加载奖池数据失败: $key', error: e);
               }
             }
           }
         } catch (e) {
-          print('Error loading prize pools from localStorage: $e');
+          logger.e('从localStorage加载奖池数据失败', error: e);
         }
         
         return pools;
       }
     } catch (e) {
-      print('Error loading prize pools: $e');
+      logger.e('加载所有奖池数据失败', error: e);
       return [];
     }
   }
@@ -745,13 +746,13 @@ class DataService {
         final String jsonData = const JsonEncoder.withIndent('  ').convert(dataMap);
         
         if (jsonData.length > 1000000) {
-          print('Warning: Lottery records data is large (${jsonData.length} chars), may cause performance issues');
+          logger.w('抽奖记录数据量较大 (${jsonData.length} 字符)，可能影响性能');
         }
         
         _setWebStorage('lottery_records.json', jsonData);
       }
     } catch (e) {
-      print('Error adding lottery record: $e');
+      logger.e('添加抽奖记录失败', error: e);
       rethrow;
     }
   }
@@ -796,7 +797,7 @@ class DataService {
         return result;
       }
     } catch (e) {
-      print('Error loading lottery records: $e');
+      logger.e('加载抽奖记录失败', error: e);
       return [];
     }
   }
@@ -837,13 +838,13 @@ class DataService {
         final String jsonData = const JsonEncoder.withIndent('  ').convert(dataMap);
         
         if (jsonData.length > 1000000) {
-          print('Warning: Lottery records data is large (${jsonData.length} chars), may cause performance issues');
+          logger.w('抽奖记录数据量较大 (${jsonData.length} 字符)，可能影响性能');
         }
         
         _setWebStorage('lottery_records.json', jsonData);
       }
     } catch (e) {
-      print('Error clearing lottery records: $e');
+      logger.e('清除抽奖记录失败', error: e);
       rethrow;
     }
   }
@@ -859,7 +860,7 @@ class DataService {
         _setWebStorage('lottery_records.json', '{}');
       }
     } catch (e) {
-      print('Error clearing all lottery records: $e');
+      logger.e('清除所有抽奖记录失败', error: e);
       rethrow;
     }
   }

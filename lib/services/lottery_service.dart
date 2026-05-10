@@ -4,6 +4,7 @@ import '../models/prize.dart';
 import '../models/prize_pool.dart';
 import '../models/lottery_record.dart';
 import '../models/student.dart';
+import '../utils/logger.dart';
 import 'data_service.dart';
 
 class LotteryService {
@@ -21,7 +22,7 @@ class LotteryService {
     try {
       await _dataService.savePrizePoolData(pool.name, pool.toJson());
     } catch (e) {
-      print('Error saving prize pool: $e');
+      logger.e('保存奖池失败', error: e);
       rethrow;
     }
   }
@@ -33,7 +34,7 @@ class LotteryService {
       updatedData['prizes'] = prizes.map((p) => p.toJson()).toList();
       await _dataService.savePrizePoolData(poolName, updatedData);
     } catch (e) {
-      print('Error saving prizes: $e');
+      logger.e('保存奖品失败', error: e);
       rethrow;
     }
   }
@@ -43,7 +44,7 @@ class LotteryService {
       await _dataService.deletePrizePoolData(poolName);
       _drawnRecords.remove(poolName);
     } catch (e) {
-      print('Error deleting prize pool: $e');
+      logger.e('删除奖池失败', error: e);
       rethrow;
     }
   }
@@ -53,7 +54,7 @@ class LotteryService {
       final pools = await _loadPrizePools();
       return pools;
     } catch (e) {
-      print('Error loading prize pools: $e');
+      logger.e('加载奖池列表失败', error: e);
       return [];
     }
   }
@@ -80,7 +81,7 @@ class LotteryService {
           .map((p) => Prize.fromJson(p as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      print('Error loading prizes: $e');
+      logger.e('加载奖品列表失败', error: e);
       return [];
     }
   }
@@ -92,7 +93,7 @@ class LotteryService {
           .map((data) => PrizePool.fromJson(data))
           .toList();
     } catch (e) {
-      print('Error loading prize pools: $e');
+      logger.e('加载奖池数据失败', error: e);
       return [];
     }
   }
@@ -187,7 +188,7 @@ class LotteryService {
     try {
       await _dataService.addLotteryRecord(record);
     } catch (e) {
-      print('Error saving lottery record: $e');
+      logger.e('保存抽奖记录失败', error: e);
       rethrow;
     }
   }
@@ -202,7 +203,7 @@ class LotteryService {
       
       return records;
     } catch (e) {
-      print('Error loading lottery records: $e');
+      logger.e('加载抽奖记录失败', error: e);
       return [];
     }
   }
@@ -217,7 +218,7 @@ class LotteryService {
         _drawnRecords.clear();
       }
     } catch (e) {
-      print('Error clearing lottery records: $e');
+      logger.e('清除抽奖记录失败', error: e);
       rethrow;
     }
   }

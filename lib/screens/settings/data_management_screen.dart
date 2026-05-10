@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:file_picker/file_picker.dart';
@@ -5,6 +8,8 @@ import 'package:provider/provider.dart';
 import '../../providers/app_provider.dart';
 import '../../services/data_export_service.dart';
 import '../../services/data_import_service.dart';
+import '../../services/log_service.dart';
+import 'log_viewer_screen.dart';
 
 class DataManagementScreen extends StatefulWidget {
   const DataManagementScreen({super.key});
@@ -16,7 +21,8 @@ class DataManagementScreen extends StatefulWidget {
 class _DataManagementScreenState extends State<DataManagementScreen> {
   final DataExportService _exportService = DataExportService();
   final DataImportService _importService = DataImportService();
-  
+  final AppLogService _logService = AppLogService();
+
   // 导出选项状态
   final Map<ExportType, bool> _exportOptions = {
     ExportType.history: true,
@@ -25,9 +31,30 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
     ExportType.students: true,
     ExportType.prizes: true,
   };
-  
+
   bool _isExporting = false;
   bool _isImporting = false;
+
+  // 日志管理状态
+  bool _loggingEnabled = true;
+  int _logCount = 0;
+  bool _isLoadingLogInfo = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLogInfo();
+  }
+
+  Future<void> _loadLogInfo() async {
+    final enabled = await _logService.isLoggingEnabled();
+    final logs = await _logService.getLogs();
+    setState(() {
+      _loggingEnabled = enabled;
+      _logCount = logs.length;
+      _isLoadingLogInfo = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +68,8 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
           _buildExportSection(),
           const SizedBox(height: 3),
           _buildImportSection(),
+          const SizedBox(height: 3),
+          _buildLogSection(),
         ],
       ),
     );
@@ -588,6 +617,157 @@ class _DataManagementScreenState extends State<DataManagementScreen> {
         ],
       ),
     );
+  }
+
+  // ========== 日志管理部分 ==========
+
+  Widget _buildLogSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.terminal, color: Theme.of(context).colorScheme.primary),
+          title: Text(
+            '日志管理',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          subtitle: const Text('查看、导出或清除应用运行日志。'),
+        ),
+        // 日志开关
+        SwitchListTile(
+          title: const Text('记录日志'),
+          subtitle: Text(
+            _loggingEnabled ? '正在记录日志（已记录 $_logCount 条）' : '日志记录已关闭',
+          ),
+          value: _loggingEnabled,
+          onChanged: _isLoadingLogInfo ? null : _toggleLogging,
+          contentPadding: EdgeInsets.zero,
+        ),
+        if (_loggingEnabled) ...[
+          const SizedBox(height: 8),
+          // 操作按钮
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isLoadingLogInfo || _logCount == 0 ? null : _viewLogs,
+                  icon: const Icon(Icons.visibility),
+                  label: const Text('查看日志'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isLoadingLogInfo || _logCount == 0 ? null : _exportLogs,
+                  icon: const Icon(Icons.download),
+                  label: const Text('导出日志'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _isLoadingLogInfo || _logCount == 0 ? null : _clearLogs,
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('清除日志'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+            ),
+          ),
+        ],
+        const Divider(),
+      ],
+    );
+  }
+
+  Future<void> _toggleLogging(bool value) async {
+    await _logService.setLoggingEnabled(value);
+    setState(() => _loggingEnabled = value);
+    _showSnackBar(value ? '已开启日志记录' : '已关闭日志记录');
+  }
+
+  void _viewLogs() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LogViewerScreen()),
+    ).then((_) => _loadLogInfo());
+  }
+
+  Future<void> _exportLogs() async {
+    try {
+      final logText = await _logService.exportLogsAsString();
+
+      if (logText.isEmpty) {
+        _showSnackBar('没有日志可导出');
+        return;
+      }
+
+      if (kIsWeb) {
+        // Web 平台：下载文件
+        final bytes = Uint8List.fromList(utf8.encode(logText));
+        _exportService.downloadFile(
+          'secrandom_logs_${DateTime.now().millisecondsSinceEpoch}.log',
+          bytes,
+        );
+        if (mounted) {
+          _showSnackBar('日志导出成功！文件已开始下载');
+        }
+      } else {
+        // 桌面/移动平台：保存到本地
+        final savePath = await FilePicker.platform.getDirectoryPath(
+          dialogTitle: '选择日志保存位置',
+        );
+
+        if (savePath == null) return;
+
+        final fileName = 'secrandom_logs_${DateTime.now().millisecondsSinceEpoch}.log';
+        final file = File('$savePath${Platform.pathSeparator}$fileName');
+        await file.writeAsString(logText);
+
+        if (mounted) {
+          _showSnackBar('日志导出成功！文件已保存到: ${file.path}');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('导出日志失败: $e', isError: true);
+      }
+    }
+  }
+
+  Future<void> _clearLogs() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认清除日志'),
+        content: const Text('确定要清除所有日志记录吗？此操作不可恢复。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('清除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _logService.clearLogs();
+      await _loadLogInfo();
+      if (mounted) {
+        _showSnackBar('日志已清除');
+      }
+    }
   }
 
   void _showSnackBar(String message, {bool isError = false}) {

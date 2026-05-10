@@ -225,7 +225,7 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
     await _handleClassAction(provider, className, totalCount, action);
   }
 
-  Future<void> _showQuickImportDialog(BuildContext context, AppProvider provider) async {
+  Future<void> _showQuickImportDialog(AppProvider provider) async {
     // 先让用户选择目标班级
     final selectedClass = await showDialog<String>(
       context: context,
@@ -261,6 +261,7 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
 
     // 如果用户选择创建新班级
     if (selectedClass == '__create_new__') {
+      if (!mounted) return;
       final newClassName = await _showCreateClassDialog(context);
       if (newClassName == null || newClassName.isEmpty) return;
 
@@ -277,6 +278,7 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
     }
 
     // 选择导入方式
+    if (!mounted) return;
     final importMethod = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
@@ -326,6 +328,7 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
 
     if (importMethod == 'text') {
       // 导航到文本导入页面
+      if (!mounted) return;
       final importSuccess = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
@@ -373,8 +376,9 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
       switch (extension) {
         case 'xlsx':
           if (file.bytes == null) {
-            if (mounted) Navigator.pop(context);
-            if (mounted) _showErrorDialog('无法读取文件内容');
+            if (!mounted) return;
+            Navigator.pop(context);
+            _showErrorDialog('无法读取文件内容');
             return;
           }
           importResult = await ExcelImportService.parseExcel(file.bytes!);
@@ -382,29 +386,31 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
         case 'txt':
           final bytes = file.bytes;
           if (bytes == null) {
-            if (mounted) Navigator.pop(context);
-            if (mounted) _showErrorDialog('无法读取文件内容');
+            if (!mounted) return;
+            Navigator.pop(context);
+            _showErrorDialog('无法读取文件内容');
             return;
           }
           importResult = await ExcelImportService.parseTxt(utf8.decode(bytes));
           break;
         default:
-          if (mounted) Navigator.pop(context);
-          if (mounted) _showErrorDialog('不支持的文件格式，请使用 .xlsx 或 .txt 文件');
+          if (!mounted) return;
+          Navigator.pop(context);
+          _showErrorDialog('不支持的文件格式，请使用 .xlsx 或 .txt 文件');
           return;
       }
 
-      if (mounted) Navigator.pop(context); // 关闭加载指示器
+      if (!mounted) return;
+      Navigator.pop(context); // 关闭加载指示器
 
       // 检查解析结果
       if (importResult.names.isEmpty) {
-        if (mounted) {
-          _showErrorDialog(
-            importResult.errors.isNotEmpty
-                ? '文件解析失败: ${importResult.errors.first}'
-                : '文件中没有找到有效的学生数据',
-          );
-        }
+        if (!mounted) return;
+        _showErrorDialog(
+          importResult.errors.isNotEmpty
+              ? '文件解析失败: ${importResult.errors.first}'
+              : '文件中没有找到有效的学生数据',
+        );
         return;
       }
 
@@ -420,6 +426,7 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
       }
 
       // 导航到预览页面
+      if (!mounted) return;
       final importSuccess = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
@@ -431,13 +438,15 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
       );
 
       if (importSuccess == true && mounted) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('学生导入成功')),
         );
       }
     } catch (e) {
-      if (mounted) Navigator.pop(context); // 关闭加载指示器（如果还在）
-      if (mounted) _showErrorDialog('文件解析失败: ${e.toString()}');
+      if (!mounted) return;
+      Navigator.pop(context); // 关闭加载指示器（如果还在）
+      _showErrorDialog('文件解析失败: ${e.toString()}');
     }
   }
 
@@ -525,7 +534,7 @@ class _RollCallSettingsScreenState extends State<RollCallSettingsScreen> {
         actions: [
           Consumer<AppProvider>(
             builder: (context, provider, _) => TextButton.icon(
-              onPressed: () => _showQuickImportDialog(context, provider),
+              onPressed: () => _showQuickImportDialog(provider),
               icon: const Icon(Icons.file_upload),
               label: const Text('快速导入'),
             ),
@@ -724,36 +733,6 @@ class _ClassStudentSettingsScreenState extends State<ClassStudentSettingsScreen>
     }
   }
 
-  Future<void> _deleteStudent(AppProvider provider, Student student) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要删除学生 "${student.name}" 吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-    try {
-      await provider.deleteStudentFromClass(_className, student.id);
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('删除学生失败')),
-      );
-    }
-  }
-
   Future<_StudentFormData?> _showStudentDialog({Student? initialStudent, Future<void> Function()? onDelete}) async {
     final nameController = TextEditingController(text: initialStudent?.name ?? '');
     final groupController = TextEditingController(text: initialStudent?.group ?? '1');
@@ -781,11 +760,11 @@ class _ClassStudentSettingsScreenState extends State<ClassStudentSettingsScreen>
                 DropdownButtonFormField<String>(
                   initialValue: gender,
                   decoration: const InputDecoration(labelText: '性别'),
-                  items: [
-                    const DropdownMenuItem(value: '男', child: Text('男')),
-                    const DropdownMenuItem(value: '女', child: Text('女')),
-                    const DropdownMenuItem(value: '未知', child: Text('未知')),
-                    const DropdownMenuItem(
+                  items: const [
+                    DropdownMenuItem(value: '男', child: Text('男')),
+                    DropdownMenuItem(value: '女', child: Text('女')),
+                    DropdownMenuItem(value: '未知', child: Text('未知')),
+                    DropdownMenuItem(
                       value: '__custom__',
                       child: Row(
                         children: [
