@@ -6,12 +6,14 @@ class SettingItem {
   final IconData icon;
   final Widget Function() pageBuilder;
   final String routeName;
+  final List<Widget> Function(BuildContext)? actionsBuilder;
 
   const SettingItem({
     required this.title,
     required this.icon,
     required this.pageBuilder,
     required this.routeName,
+    this.actionsBuilder,
   });
 }
 
@@ -58,27 +60,30 @@ class _SettingsLayoutState extends State<SettingsLayout> {
     return Container(
       width: _kMasterWidth,
       decoration: BoxDecoration(
-        border: Border(
-          right: BorderSide(
-            color: Theme.of(context).dividerColor,
-            width: 1,
-          ),
-        ),
         color: Theme.of(context).colorScheme.surfaceContainerLow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-            child: Text(
-              widget.title,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+          SizedBox(
+            height: 56,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  widget.title,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ),
             ),
           ),
-          const Divider(height: 1),
+          Container(
+            height: 1,
+            color: Theme.of(context).dividerColor,
+          ),
           Expanded(
             child: ListView.builder(
               itemCount: widget.items.length,
@@ -122,31 +127,42 @@ class _SettingsLayoutState extends State<SettingsLayout> {
       return const Center(child: Text('暂无设置项'));
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: Theme.of(context).dividerColor,
-                width: 1,
+    final item = widget.items[_selectedIndex];
+    final actions = item.actionsBuilder?.call(context) ?? [];
+
+    return Container(
+      color: Theme.of(context).colorScheme.surface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 56,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.title,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                  ),
+                  if (actions.isNotEmpty) ...actions,
+                ],
               ),
             ),
-            color: Theme.of(context).colorScheme.surface,
           ),
-          child: Text(
-            widget.items[_selectedIndex].title,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+          Container(
+            height: 1,
+            color: Theme.of(context).dividerColor,
           ),
-        ),
-        Expanded(
-          child: widget.items[_selectedIndex].pageBuilder(),
-        ),
-      ],
+          Expanded(
+            child: item.pageBuilder(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -161,10 +177,14 @@ class _SettingsLayoutState extends State<SettingsLayout> {
           title: Text(item.title),
           trailing: const Icon(Icons.chevron_right),
           onTap: () {
+            final actions = item.actionsBuilder?.call(context) ?? [];
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (context) => Scaffold(
-                  appBar: AppBar(title: Text(item.title)),
+                  appBar: AppBar(
+                    title: Text(item.title),
+                    actions: actions.isNotEmpty ? actions : null,
+                  ),
                   body: item.pageBuilder(),
                 ),
               ),
@@ -180,6 +200,10 @@ class _SettingsLayoutState extends State<SettingsLayout> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildMasterPanel(),
+        Container(
+          width: 1,
+          color: Theme.of(context).dividerColor,
+        ),
         Expanded(child: _buildDetailPanel()),
       ],
     );

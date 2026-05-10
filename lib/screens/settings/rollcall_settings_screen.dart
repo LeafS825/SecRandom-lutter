@@ -22,8 +22,304 @@ class RollCallSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('点名名单设置')),
+      appBar: AppBar(
+        title: const Text('点名名单设置'),
+        actions: [
+          Consumer<AppProvider>(
+            builder: (context, provider, _) => TextButton.icon(
+              onPressed: () => showQuickImportDialog(context, provider),
+              icon: const Icon(Icons.file_upload),
+              label: const Text('快速导入'),
+            ),
+          ),
+        ],
+      ),
       body: const RollCallSettingsBody(),
+    );
+  }
+
+  static Future<void> showQuickImportDialog(BuildContext context, AppProvider provider) async {
+    final selectedClass = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('选择导入到哪个班级'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, '__create_new__'),
+            child: const Row(
+              children: [
+                Icon(Icons.add, color: Colors.blue),
+                SizedBox(width: 8),
+                Text('新建班级', style: TextStyle(color: Colors.blue)),
+              ],
+            ),
+          ),
+          const Divider(),
+          ...provider.groups.map((className) => SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, className),
+            child: Text(className),
+          )),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedClass == null || !context.mounted) return;
+
+    String targetClass = selectedClass;
+
+    if (selectedClass == '__create_new__') {
+      final newClassName = await _showCreateClassDialog(context);
+      if (newClassName == null || newClassName.isEmpty || !context.mounted) return;
+
+      if (provider.groups.contains(newClassName)) {
+        if (!context.mounted) return;
+        _showErrorDialog(context, '班级 "$newClassName" 已存在');
+        return;
+      }
+
+      await provider.addClass(newClassName);
+      targetClass = newClassName;
+    }
+
+    if (!context.mounted) return;
+    final importMethod = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('选择导入方式'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'file'),
+            child: const Row(
+              children: [
+                Icon(Icons.file_upload),
+                SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('从文件导入', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text('支持 .xlsx 和 .txt 格式', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'text'),
+            child: const Row(
+              children: [
+                Icon(Icons.text_fields),
+                SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('从文本导入', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text('直接粘贴姓名列表', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
+
+    if (importMethod == null || !context.mounted) return;
+
+    if (importMethod == 'text') {
+      final importSuccess = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => StudentImportScreen(className: targetClass),
+        ),
+      );
+
+      if (importSuccess == true && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('学生导入成功')),
+        );
+      }
+      return;
+    }
+
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'txt'],
+        withData: true,
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      _showErrorDialog(context, '文件选择失败: ${e.toString()}');
+      return;
+    }
+
+    if (result == null || !context.mounted) return;
+
+    final file = result.files.single;
+    final extension = file.name.split('.').last.toLowerCase();
+
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      ImportResult importResult;
+      switch (extension) {
+        case 'xlsx':
+          if (file.bytes == null) {
+            if (context.mounted) Navigator.pop(context);
+            if (context.mounted) _showErrorDialog(context, '无法读取文件内容');
+            return;
+          }
+          importResult = await ExcelImportService.parseExcel(file.bytes!);
+          break;
+        case 'txt':
+          final bytes = file.bytes;
+          if (bytes == null) {
+            if (context.mounted) Navigator.pop(context);
+            if (context.mounted) _showErrorDialog(context, '无法读取文件内容');
+            return;
+          }
+          importResult = await ExcelImportService.parseTxt(utf8.decode(bytes));
+          break;
+        default:
+          if (context.mounted) Navigator.pop(context);
+          if (context.mounted) _showErrorDialog(context, '不支持的文件格式，请使用 .xlsx 或 .txt 文件');
+          return;
+      }
+
+      if (context.mounted) Navigator.pop(context);
+
+      if (importResult.names.isEmpty) {
+        if (!context.mounted) return;
+        _showErrorDialog(
+          context,
+          importResult.errors.isNotEmpty
+              ? '文件解析失败: ${importResult.errors.first}'
+              : '文件中没有找到有效的学生数据',
+        );
+        return;
+      }
+
+      if (importResult.errors.isNotEmpty) {
+        final proceed = await _showWarningDialog(
+          context,
+          '解析警告',
+          '发现 ${importResult.errors.length} 条问题数据：\n'
+              '${importResult.errors.take(5).join('\n')}'
+              '${importResult.errors.length > 5 ? '\n...' : ''}\n\n'
+              '是否继续导入有效的 ${importResult.names.length} 条数据？',
+        );
+        if (proceed != true || !context.mounted) return;
+      }
+
+      if (!context.mounted) return;
+      final importSuccess = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FileImportPreviewScreen(
+            className: targetClass,
+            importResult: importResult,
+          ),
+        ),
+      );
+
+      if (importSuccess == true && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('学生导入成功')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) Navigator.pop(context);
+      if (context.mounted) _showErrorDialog(context, '文件解析失败: ${e.toString()}');
+    }
+  }
+
+  static void _showErrorDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.error, color: Colors.red),
+            SizedBox(width: 8),
+            Text('错误'),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Future<bool?> _showWarningDialog(BuildContext context, String title, String message) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.warning, color: Colors.orange),
+            const SizedBox(width: 8),
+            Text(title),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('继续导入'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Future<String?> _showCreateClassDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('新建班级'),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            labelText: '班级名称',
+            hintText: '请输入班级名称',
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, nameController.text.trim()),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -242,297 +538,6 @@ class _RollCallSettingsBodyState extends State<RollCallSettingsBody> {
     await _handleClassAction(provider, className, totalCount, action);
   }
 
-  Future<void> _showQuickImportDialog(AppProvider provider) async {
-    final selectedClass = await showDialog<String>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('选择导入到哪个班级'),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, '__create_new__'),
-            child: const Row(
-              children: [
-                Icon(Icons.add, color: Colors.blue),
-                SizedBox(width: 8),
-                Text('新建班级', style: TextStyle(color: Colors.blue)),
-              ],
-            ),
-          ),
-          const Divider(),
-          ...provider.groups.map((className) => SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, className),
-            child: Text(className),
-          )),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, null),
-            child: const Text('取消'),
-          ),
-        ],
-      ),
-    );
-
-    if (selectedClass == null) return;
-
-    String targetClass = selectedClass;
-
-    if (selectedClass == '__create_new__') {
-      if (!mounted) return;
-      final newClassName = await _showCreateClassDialog(context);
-      if (newClassName == null || newClassName.isEmpty) return;
-
-      if (provider.groups.contains(newClassName)) {
-        if (!mounted) return;
-        _showErrorDialog('班级 "$newClassName" 已存在');
-        return;
-      }
-
-      await provider.addClass(newClassName);
-      targetClass = newClassName;
-    }
-
-    if (!mounted) return;
-    final importMethod = await showDialog<String>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('选择导入方式'),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, 'file'),
-            child: const Row(
-              children: [
-                Icon(Icons.file_upload),
-                SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('从文件导入', style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text('支持 .xlsx 和 .txt 格式', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, 'text'),
-            child: const Row(
-              children: [
-                Icon(Icons.text_fields),
-                SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('从文本导入', style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text('直接粘贴姓名列表', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, null),
-            child: const Text('取消'),
-          ),
-        ],
-      ),
-    );
-
-    if (importMethod == null) return;
-
-    if (importMethod == 'text') {
-      if (!mounted) return;
-      final importSuccess = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(
-          builder: (context) => StudentImportScreen(className: targetClass),
-        ),
-      );
-
-      if (importSuccess == true && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('学生导入成功')),
-        );
-      }
-      return;
-    }
-
-    FilePickerResult? result;
-    try {
-      result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['xlsx', 'txt'],
-        withData: true,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      _showErrorDialog('文件选择失败: ${e.toString()}');
-      return;
-    }
-
-    if (result == null) return;
-
-    final file = result.files.single;
-    final extension = file.name.split('.').last.toLowerCase();
-
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      ImportResult importResult;
-      switch (extension) {
-        case 'xlsx':
-          if (file.bytes == null) {
-            if (!mounted) return;
-            Navigator.pop(context);
-            _showErrorDialog('无法读取文件内容');
-            return;
-          }
-          importResult = await ExcelImportService.parseExcel(file.bytes!);
-          break;
-        case 'txt':
-          final bytes = file.bytes;
-          if (bytes == null) {
-            if (!mounted) return;
-            Navigator.pop(context);
-            _showErrorDialog('无法读取文件内容');
-            return;
-          }
-          importResult = await ExcelImportService.parseTxt(utf8.decode(bytes));
-          break;
-        default:
-          if (!mounted) return;
-          Navigator.pop(context);
-          _showErrorDialog('不支持的文件格式，请使用 .xlsx 或 .txt 文件');
-          return;
-      }
-
-      if (!mounted) return;
-      Navigator.pop(context);
-
-      if (importResult.names.isEmpty) {
-        if (!mounted) return;
-        _showErrorDialog(
-          importResult.errors.isNotEmpty
-              ? '文件解析失败: ${importResult.errors.first}'
-              : '文件中没有找到有效的学生数据',
-        );
-        return;
-      }
-
-      if (importResult.errors.isNotEmpty) {
-        final proceed = await _showWarningDialog(
-          '解析警告',
-          '发现 ${importResult.errors.length} 条问题数据：\n'
-              '${importResult.errors.take(5).join('\n')}'
-              '${importResult.errors.length > 5 ? '\n...' : ''}\n\n'
-              '是否继续导入有效的 ${importResult.names.length} 条数据？',
-        );
-        if (proceed != true) return;
-      }
-
-      if (!mounted) return;
-      final importSuccess = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(
-          builder: (context) => FileImportPreviewScreen(
-            className: targetClass,
-            importResult: importResult,
-          ),
-        ),
-      );
-
-      if (importSuccess == true && mounted) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('学生导入成功')),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.pop(context);
-      _showErrorDialog('文件解析失败: ${e.toString()}');
-    }
-  }
-
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.error, color: Colors.red),
-            SizedBox(width: 8),
-            Text('错误'),
-          ],
-        ),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('确定'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<bool?> _showWarningDialog(String title, String message) {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.warning, color: Colors.orange),
-            const SizedBox(width: 8),
-            Text(title),
-          ],
-        ),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('继续导入'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<String?> _showCreateClassDialog(BuildContext context) {
-    final nameController = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('新建班级'),
-        content: TextField(
-          controller: nameController,
-          decoration: const InputDecoration(
-            labelText: '班级名称',
-            hintText: '请输入班级名称',
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, nameController.text.trim()),
-            child: const Text('确定'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -544,27 +549,6 @@ class _RollCallSettingsBodyState extends State<RollCallSettingsBody> {
 
             return Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '班级列表',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: () => _showQuickImportDialog(provider),
-                        icon: const Icon(Icons.file_upload, size: 18),
-                        label: const Text('快速导入'),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
                 Expanded(
                   child: _isLoading
                       ? const Center(child: CircularProgressIndicator())

@@ -32,11 +32,17 @@ class LotterySettingsScreen extends StatelessWidget {
 class LotterySettingsBody extends StatefulWidget {
   const LotterySettingsBody({super.key});
 
+  static void showQuickImport() {
+    _LotterySettingsBodyState.showQuickImport();
+  }
+
   @override
   State<LotterySettingsBody> createState() => _LotterySettingsBodyState();
 }
 
 class _LotterySettingsBodyState extends State<LotterySettingsBody> {
+  static _LotterySettingsBodyState? _instance;
+
   final LotteryService _lotteryService = LotteryService();
   List<PrizePool> _prizePools = [];
   Map<String, List<Prize>> _poolPrizes = {};
@@ -50,7 +56,18 @@ class _LotterySettingsBodyState extends State<LotterySettingsBody> {
   @override
   void initState() {
     super.initState();
+    _instance = this;
     _loadPrizePools();
+  }
+
+  @override
+  void dispose() {
+    if (_instance == this) _instance = null;
+    super.dispose();
+  }
+
+  static void showQuickImport() {
+    _instance?.showQuickImportDialog();
   }
 
   Future<void> _loadPrizePools() async {
@@ -262,7 +279,7 @@ class _LotterySettingsBodyState extends State<LotterySettingsBody> {
     }
   }
 
-  Future<void> _showQuickImportDialog() async {
+  Future<void> showQuickImportDialog() async {
     final selectedPool = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
@@ -503,27 +520,6 @@ class _LotterySettingsBodyState extends State<LotterySettingsBody> {
           builder: (context, appProvider, _) {
             return Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '奖池列表',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: _showQuickImportDialog,
-                        icon: const Icon(Icons.file_upload, size: 18),
-                        label: const Text('快速导入'),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
                 Expanded(
                   child: _isLoading
                       ? const Center(child: CircularProgressIndicator())

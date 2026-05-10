@@ -81,7 +81,7 @@ class _DataManagementBodyState extends State<DataManagementBody> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 900;
+        final isWide = constraints.maxWidth >= 600;
 
         if (isWide) {
           return _buildWideLayout();
@@ -111,16 +111,20 @@ class _DataManagementBodyState extends State<DataManagementBody> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
+          Flexible(
             child: _buildExportSectionCard(),
           ),
           const SizedBox(width: 16),
-          Expanded(
-            child: _buildImportSectionCard(),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: _buildLogSectionCard(),
+          SizedBox(
+            width: 320,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildImportSectionCard(),
+                const SizedBox(height: 16),
+                _buildLogSectionCard(),
+              ],
+            ),
           ),
         ],
       ),
@@ -268,16 +272,17 @@ class _DataManagementBodyState extends State<DataManagementBody> {
             ),
             if (_loggingEnabled) ...[
               const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoadingLogInfo || _logCount == 0 ? null : _viewLogs,
+                  icon: const Icon(Icons.visibility, size: 18),
+                  label: const Text('查看日志'),
+                ),
+              ),
+              const SizedBox(height: 8),
               Row(
                 children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isLoadingLogInfo || _logCount == 0 ? null : _viewLogs,
-                      icon: const Icon(Icons.visibility, size: 18),
-                      label: const Text('查看'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _isLoadingLogInfo || _logCount == 0 ? null : _exportLogs,
