@@ -205,15 +205,21 @@ class _LotteryHistoryDetailScreenState extends State<LotteryHistoryDetailScreen>
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        controller: _scrollController,
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _buildFilters(poolNames),
-            const SizedBox(height: 16),
-            _buildDataTable(filteredRecords),
-          ],
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _buildFilters(poolNames),
+                const SizedBox(height: 16),
+                _buildDataTable(filteredRecords),
+              ],
+            ),
+          ),
         ),
       ),
     );

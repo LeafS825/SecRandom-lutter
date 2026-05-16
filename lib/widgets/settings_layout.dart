@@ -20,7 +20,7 @@ class SettingItem {
 /// 通用设置布局组件
 ///
 /// 支持两种模式：
-/// - 紧凑模式 (< 900px): 保持移动端 Scaffold 堆栈布局
+/// - 紧凑模式 (< 900px): 移动端布局，点击进入详情，宽屏时自动返回列表
 /// - 扩展模式 (>= 900px): Master-Detail 双栏布局
 class SettingsLayout extends StatefulWidget {
   final List<SettingItem> items;
@@ -40,6 +40,7 @@ class SettingsLayout extends StatefulWidget {
 
 class _SettingsLayoutState extends State<SettingsLayout> {
   late int _selectedIndex;
+  bool _showCompactDetail = false;
 
   static const double _kCompactBreakpoint = 900;
   static const double _kMasterWidth = 300;
@@ -167,6 +168,26 @@ class _SettingsLayoutState extends State<SettingsLayout> {
   }
 
   Widget _buildCompactLayout() {
+    if (_showCompactDetail) {
+      final item = widget.items[_selectedIndex];
+      final actions = item.actionsBuilder?.call(context) ?? [];
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(item.title),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              setState(() {
+                _showCompactDetail = false;
+              });
+            },
+          ),
+          actions: actions.isNotEmpty ? actions : null,
+        ),
+        body: item.pageBuilder(),
+      );
+    }
+
     return ListView.builder(
       itemCount: widget.items.length,
       itemBuilder: (context, index) {
@@ -177,18 +198,10 @@ class _SettingsLayoutState extends State<SettingsLayout> {
           title: Text(item.title),
           trailing: const Icon(Icons.chevron_right),
           onTap: () {
-            final actions = item.actionsBuilder?.call(context) ?? [];
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => Scaffold(
-                  appBar: AppBar(
-                    title: Text(item.title),
-                    actions: actions.isNotEmpty ? actions : null,
-                  ),
-                  body: item.pageBuilder(),
-                ),
-              ),
-            );
+            setState(() {
+              _selectedIndex = index;
+              _showCompactDetail = true;
+            });
           },
         );
       },
@@ -214,6 +227,17 @@ class _SettingsLayoutState extends State<SettingsLayout> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isExpanded = constraints.maxWidth >= _kCompactBreakpoint;
+
+        // 窄→宽：自动从详情返回列表，显示 Master-Detail
+        if (isExpanded && _showCompactDetail) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _showCompactDetail = false;
+              });
+            }
+          });
+        }
 
         if (isExpanded) {
           return _buildExpandedLayout();

@@ -22,10 +22,7 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsLayout(
-      title: '设置',
-      items: _buildSettingItems(),
-    );
+    return SettingsLayout(title: '设置', items: _buildSettingItems());
   }
 
   List<SettingItem> _buildSettingItems() {
@@ -37,7 +34,7 @@ class SettingsScreen extends StatelessWidget {
         routeName: '/settings/account',
       ),
       SettingItem(
-        title: '点名名单设置',
+        title: '点名名单',
         icon: Icons.people,
         pageBuilder: () => const RollCallSettingsBody(),
         routeName: '/settings/rollcall',
@@ -45,7 +42,10 @@ class SettingsScreen extends StatelessWidget {
           final provider = context.read<AppProvider>();
           return [
             TextButton.icon(
-              onPressed: () => RollCallSettingsScreen.showQuickImportDialog(context, provider),
+              onPressed: () => RollCallSettingsScreen.showQuickImportDialog(
+                context,
+                provider,
+              ),
               icon: const Icon(Icons.file_upload, size: 18),
               label: const Text('快速导入'),
             ),
@@ -53,7 +53,7 @@ class SettingsScreen extends StatelessWidget {
         },
       ),
       SettingItem(
-        title: '抽奖设置',
+        title: '抽奖名单',
         icon: Icons.card_giftcard,
         pageBuilder: () => const LotterySettingsBody(),
         routeName: '/settings/lottery',

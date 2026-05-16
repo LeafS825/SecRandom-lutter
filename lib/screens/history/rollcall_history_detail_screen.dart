@@ -196,21 +196,27 @@ class _RollcallHistoryDetailScreenState extends State<RollcallHistoryDetailScree
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        controller: _scrollController,
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _buildFilters(classOptions, filteredStudents),
-            const SizedBox(height: 16),
-            _buildDataTable(
-              filteredStudents,
-              filteredHistory,
-              callCounts,
-              currentWeights,
-              appProvider.fairDrawEnabled,
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _buildFilters(classOptions, filteredStudents),
+                const SizedBox(height: 16),
+                _buildDataTable(
+                  filteredStudents,
+                  filteredHistory,
+                  callCounts,
+                  currentWeights,
+                  appProvider.fairDrawEnabled,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

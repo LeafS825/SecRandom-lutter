@@ -40,16 +40,73 @@ class AccountSettingsBody extends StatelessWidget {
     }
 
     final authProvider = context.watch<AuthProvider>();
-    final userInfo = authProvider.userInfo;
+
+    if (authProvider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (!authProvider.isLoggedIn) {
+      return _buildLoginPrompt(context, authProvider);
+    }
+
+    return _buildUserInfo(context, authProvider);
+  }
+
+  Widget _buildLoginPrompt(BuildContext context, AuthProvider authProvider) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.account_circle_outlined,
+              size: 80,
+              color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              '登录 SECTL 账户',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '登录后可同步数据、管理账户信息',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 32),
+            FilledButton.icon(
+              onPressed: authProvider.isLoading ? null : () => _handleLogin(context, authProvider),
+              icon: const Icon(Icons.login),
+              label: const Text('登录'),
+            ),
+            if (authProvider.error != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                authProvider.error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserInfo(BuildContext context, AuthProvider authProvider) {
+    final userInfo = authProvider.userInfo!;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 600;
 
         if (isWide) {
-          return _buildWideLayout(context, userInfo);
+          return _buildWideLayout(context, userInfo, authProvider);
         } else {
-          return _buildNarrowLayout(context, userInfo);
+          return _buildNarrowLayout(context, userInfo, authProvider);
         }
       },
     );
@@ -84,20 +141,20 @@ class AccountSettingsBody extends StatelessWidget {
     );
   }
 
-  Widget _buildNarrowLayout(BuildContext context, userInfo) {
+  Widget _buildNarrowLayout(BuildContext context, userInfo, AuthProvider authProvider) {
     return ListView(
       children: [
         _buildUserInfoCard(context, userInfo),
         const SizedBox(height: 16),
         _buildAccountDetailsCard(context, userInfo),
         const SizedBox(height: 32),
-        _buildLogoutButton(context),
+        _buildLogoutButton(context, authProvider),
         const SizedBox(height: 16),
       ],
     );
   }
 
-  Widget _buildWideLayout(BuildContext context, userInfo) {
+  Widget _buildWideLayout(BuildContext context, userInfo, AuthProvider authProvider) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Row(
@@ -109,7 +166,7 @@ class AccountSettingsBody extends StatelessWidget {
               children: [
                 _buildUserInfoCard(context, userInfo, isCompact: false),
                 const SizedBox(height: 24),
-                _buildLogoutButton(context),
+                _buildLogoutButton(context, authProvider),
               ],
             ),
           ),
@@ -132,27 +189,27 @@ class AccountSettingsBody extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 50,
-              backgroundImage: userInfo?.avatarUrl != null
-                  ? CachedNetworkImageProvider(userInfo!.avatarUrl!)
+              backgroundImage: userInfo.avatarUrl != null
+                  ? CachedNetworkImageProvider(userInfo.avatarUrl!)
                   : null,
-              child: userInfo?.avatarUrl == null
+              child: userInfo.avatarUrl == null
                   ? Text(
-                      userInfo?.name[0] ?? 'U',
+                      userInfo.name.isNotEmpty ? userInfo.name[0].toUpperCase() : 'U',
                       style: const TextStyle(fontSize: 32),
                     )
                   : null,
             ),
             const SizedBox(height: 16),
             Text(
-              userInfo?.name ?? '用户',
+              userInfo.name,
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 4),
             Text(
-              userInfo?.email ?? '',
+              userInfo.email,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -174,26 +231,26 @@ class AccountSettingsBody extends StatelessWidget {
             context,
             icon: Icons.badge_outlined,
             label: '用户 ID',
-            value: userInfo?.userId ?? '-',
+            value: userInfo.userId,
           ),
           _buildDetailItem(
             context,
             icon: Icons.shield_outlined,
             label: '权限等级',
-            value: userInfo?.role ?? '-',
+            value: userInfo.role,
           ),
-          if (userInfo?.githubUsername != null)
+          if (userInfo.githubUsername != null && userInfo.githubUsername!.isNotEmpty)
             _buildDetailItem(
               context,
               icon: Icons.code,
               label: 'GitHub',
-              value: userInfo!.githubUsername!,
+              value: userInfo.githubUsername!,
             ),
           _buildDetailItem(
             context,
             icon: Icons.calendar_today_outlined,
             label: '注册时间',
-            value: _formatDate(userInfo?.createdAt),
+            value: _formatDate(userInfo.createdAt),
           ),
         ],
       ),
@@ -214,11 +271,11 @@ class AccountSettingsBody extends StatelessWidget {
     );
   }
 
-  Widget _buildLogoutButton(BuildContext context) {
+  Widget _buildLogoutButton(BuildContext context, AuthProvider authProvider) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: OutlinedButton.icon(
-        onPressed: () => _handleLogout(context),
+        onPressed: authProvider.isLoading ? null : () => _handleLogout(context, authProvider),
         icon: const Icon(Icons.logout),
         label: const Text('退出登录'),
         style: OutlinedButton.styleFrom(
@@ -232,7 +289,23 @@ class AccountSettingsBody extends StatelessWidget {
     );
   }
 
-  void _handleLogout(BuildContext context) {
+  Future<void> _handleLogin(BuildContext context, AuthProvider authProvider) async {
+    authProvider.clearError();
+    try {
+      await authProvider.login();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('登录失败: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _handleLogout(BuildContext context, AuthProvider authProvider) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -245,15 +318,9 @@ class AccountSettingsBody extends StatelessWidget {
           ),
           FilledButton(
             onPressed: () async {
-              final authProvider = context.read<AuthProvider>();
+              Navigator.pop(dialogContext);
               await authProvider.logout();
               if (context.mounted) {
-                Navigator.pop(dialogContext);
-                // 在 SettingsLayout 的 Detail 区域中不需要再 pop 两层
-                // 只有在独立页面时才需要
-                if (Navigator.canPop(context)) {
-                  Navigator.pop(context);
-                }
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('已退出登录')),
                 );
@@ -266,13 +333,12 @@ class AccountSettingsBody extends StatelessWidget {
     );
   }
 
-  String _formatDate(String? isoDate) {
-    if (isoDate == null) return '-';
+  String _formatDate(String isoDate) {
     try {
       final date = DateTime.parse(isoDate);
       return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     } catch (e) {
-      return '-';
+      return isoDate;
     }
   }
 }

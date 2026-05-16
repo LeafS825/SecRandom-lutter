@@ -109,12 +109,8 @@ class AuthConfig {
   }
 
   static String get windowsOauthRedirectUri {
-    if (useMockAuth &&
-        authCallbackWindowsUrl ==
-            'https://secrandom-lite.sectl.cn/auth_callback_windows.html') {
-      return '$mockAuthBaseUrl/auth_callback_windows.html';
-    }
-    return authCallbackWindowsUrl;
+    // Windows 直接重定向到本地 loopback，不经过 web 中转
+    return 'http://$loopbackHost:$windowsLoopbackPort$loopbackPath';
   }
 
   static String get deepLinkCallbackUri =>
