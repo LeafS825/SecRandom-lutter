@@ -17,11 +17,13 @@ class ControlPanel extends StatelessWidget {
     this.layoutMode = ControlPanelLayoutMode.auto,
     this.availableHeight,
     this.fillHeight = false,
+    this.elevation = 4,
   });
 
   final ControlPanelLayoutMode layoutMode;
   final double? availableHeight;
   final bool fillHeight;
+  final double elevation;
 
   static const startButtonKey = ValueKey('rollcall_start_button');
   static const decrementSelectCountKey = ValueKey('rollcall_select_count_decrement');
@@ -94,7 +96,7 @@ class ControlPanel extends StatelessWidget {
     );
     return Card(
       key: measureKey,
-      elevation: 4,
+      elevation: elevation,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(isCompactMode ? 12 : 16),
       ),

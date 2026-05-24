@@ -7,6 +7,9 @@ class SettingItem {
   final Widget Function() pageBuilder;
   final String routeName;
   final List<Widget> Function(BuildContext)? actionsBuilder;
+  final bool applyMaxWidth;
+  final Widget Function(BuildContext)? titleBuilder;
+  final Widget Function(BuildContext)? leadingBuilder;
 
   const SettingItem({
     required this.title,
@@ -14,6 +17,9 @@ class SettingItem {
     required this.pageBuilder,
     required this.routeName,
     this.actionsBuilder,
+    this.applyMaxWidth = true,
+    this.titleBuilder,
+    this.leadingBuilder,
   });
 }
 
@@ -40,7 +46,6 @@ class SettingsLayout extends StatefulWidget {
 
 class _SettingsLayoutState extends State<SettingsLayout> {
   late int _selectedIndex;
-  bool _showCompactDetail = false;
 
   static const double _kCompactBreakpoint = 900;
   static const double _kMasterWidth = 300;
@@ -93,21 +98,25 @@ class _SettingsLayoutState extends State<SettingsLayout> {
                 final isSelected = index == _selectedIndex;
 
                 return ListTile(
-                  leading: Icon(
-                    item.icon,
-                    color: isSelected
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                  ),
-                  title: Text(
-                    item.title,
-                    style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
+                  leading: item.leadingBuilder != null
+                      ? item.leadingBuilder!(context)
+                      : Icon(
+                          item.icon,
+                          color: isSelected
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                  title: item.titleBuilder != null
+                      ? item.titleBuilder!(context)
+                      : Text(
+                          item.title,
+                          style: TextStyle(
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
                   selected: isSelected,
                   selectedTileColor: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.24),
                   shape: RoundedRectangleBorder(
@@ -160,7 +169,15 @@ class _SettingsLayoutState extends State<SettingsLayout> {
             color: Theme.of(context).dividerColor,
           ),
           Expanded(
-            child: item.pageBuilder(),
+            child: item.applyMaxWidth
+                ? Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1200),
+                      child: item.pageBuilder(),
+                    ),
+                  )
+                : item.pageBuilder(),
           ),
         ],
       ),
@@ -168,40 +185,29 @@ class _SettingsLayoutState extends State<SettingsLayout> {
   }
 
   Widget _buildCompactLayout() {
-    if (_showCompactDetail) {
-      final item = widget.items[_selectedIndex];
-      final actions = item.actionsBuilder?.call(context) ?? [];
-      return Scaffold(
-        appBar: AppBar(
-          title: Text(item.title),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              setState(() {
-                _showCompactDetail = false;
-              });
-            },
-          ),
-          actions: actions.isNotEmpty ? actions : null,
-        ),
-        body: item.pageBuilder(),
-      );
-    }
-
     return ListView.builder(
       itemCount: widget.items.length,
       itemBuilder: (context, index) {
         final item = widget.items[index];
 
         return ListTile(
-          leading: Icon(item.icon),
-          title: Text(item.title),
+          leading: item.leadingBuilder != null
+              ? item.leadingBuilder!(context)
+              : Icon(item.icon),
+          title: item.titleBuilder != null
+              ? item.titleBuilder!(context)
+              : Text(item.title),
           trailing: const Icon(Icons.chevron_right),
           onTap: () {
-            setState(() {
-              _selectedIndex = index;
-              _showCompactDetail = true;
-            });
+            _selectedIndex = index;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => _SettingsDetailPage(
+                  item: item,
+                ),
+              ),
+            );
           },
         );
       },
@@ -228,23 +234,38 @@ class _SettingsLayoutState extends State<SettingsLayout> {
       builder: (context, constraints) {
         final isExpanded = constraints.maxWidth >= _kCompactBreakpoint;
 
-        // 窄→宽：自动从详情返回列表，显示 Master-Detail
-        if (isExpanded && _showCompactDetail) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                _showCompactDetail = false;
-              });
-            }
-          });
-        }
-
         if (isExpanded) {
           return _buildExpandedLayout();
         } else {
           return _buildCompactLayout();
         }
       },
+    );
+  }
+}
+
+class _SettingsDetailPage extends StatelessWidget {
+  final SettingItem item;
+
+  const _SettingsDetailPage({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = item.actionsBuilder?.call(context) ?? [];
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(item.title),
+        actions: actions.isNotEmpty ? actions : null,
+      ),
+      body: item.applyMaxWidth
+          ? Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1200),
+                child: item.pageBuilder(),
+              ),
+            )
+          : item.pageBuilder(),
     );
   }
 }

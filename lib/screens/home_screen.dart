@@ -216,18 +216,11 @@ class _HomeScreenState extends State<HomeScreen> {
             key: _rollCallPortraitPanelKey,
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
-                ),
-              ],
             ),
             constraints: const BoxConstraints(maxHeight: _kNarrowPanelHeight),
             child: const Padding(
               padding: EdgeInsets.all(8),
-              child: ControlPanel(),
+              child: ControlPanel(elevation: 0),
             ),
           ),
         ],

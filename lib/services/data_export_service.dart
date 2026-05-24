@@ -194,7 +194,7 @@ class DataExportService {
     return {
       'version': '1.0',
       'exportTime': DateTime.now().toIso8601String(),
-      'appVersion': '1.0.1',
+      'appVersion': '1.0.2',
       'data': data,
     };
   }

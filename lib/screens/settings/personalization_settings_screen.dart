@@ -99,68 +99,56 @@ class PersonalizationSettingsBody extends StatelessWidget {
   }
 
   Widget _buildWideLayout(BuildContext context, AppProvider appProvider) {
-    return Padding(
+    return ListView(
       padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SettingsSectionCard(
-            title: '主题',
-            icon: Icons.palette,
-            children: [
-              _ThemeModeTile(
-                currentMode: appProvider.themeMode,
-                onModeChanged: appProvider.setThemeMode,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _SettingsSectionCard(
-                  title: '抽人设置',
-                  icon: Icons.person_search,
-                  children: [
-                    _AnimationModeTile(
-                      title: '点名动画模式',
-                      currentMode: appProvider.rollcallAnimationMode,
-                      onModeChanged: appProvider.setRollcallAnimationMode,
-                    ),
-                    const SizedBox(height: 12),
-                    _FontSizeSliderTile(
-                      label: '抽人结果字号',
-                      value: appProvider.rollcallResultFontSize,
-                      onChanged: appProvider.setRollcallResultFontSize,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _SettingsSectionCard(
-                  title: '抽奖设置',
-                  icon: Icons.card_giftcard,
-                  children: [
-                    _AnimationModeTile(
-                      title: '抽奖动画模式',
-                      currentMode: appProvider.lotteryAnimationMode,
-                      onModeChanged: appProvider.setLotteryAnimationMode,
-                    ),
-                    const SizedBox(height: 12),
-                    _FontSizeSliderTile(
-                      label: '抽奖结果字号',
-                      value: appProvider.lotteryResultFontSize,
-                      onChanged: appProvider.setLotteryResultFontSize,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+      children: [
+        _SettingsSectionCard(
+          title: '主题',
+          icon: Icons.palette,
+          children: [
+            _ThemeModeTile(
+              currentMode: appProvider.themeMode,
+              onModeChanged: appProvider.setThemeMode,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _SettingsSectionCard(
+          title: '抽人设置',
+          icon: Icons.person_search,
+          children: [
+            _AnimationModeTile(
+              title: '点名动画模式',
+              currentMode: appProvider.rollcallAnimationMode,
+              onModeChanged: appProvider.setRollcallAnimationMode,
+            ),
+            const SizedBox(height: 12),
+            _FontSizeSliderTile(
+              label: '抽人结果字号',
+              value: appProvider.rollcallResultFontSize,
+              onChanged: appProvider.setRollcallResultFontSize,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _SettingsSectionCard(
+          title: '抽奖设置',
+          icon: Icons.card_giftcard,
+          children: [
+            _AnimationModeTile(
+              title: '抽奖动画模式',
+              currentMode: appProvider.lotteryAnimationMode,
+              onModeChanged: appProvider.setLotteryAnimationMode,
+            ),
+            const SizedBox(height: 12),
+            _FontSizeSliderTile(
+              label: '抽奖结果字号',
+              value: appProvider.lotteryResultFontSize,
+              onChanged: appProvider.setLotteryResultFontSize,
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

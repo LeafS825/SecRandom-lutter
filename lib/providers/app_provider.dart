@@ -330,9 +330,6 @@ class AppProvider with ChangeNotifier {
     if (!_groups.contains(className)) return;
 
     _groups.remove(className);
-    if (_groups.isEmpty) {
-      _groups.add('1');
-    }
 
     _allStudents.removeWhere((s) => s.className == className);
     await _dataService.saveStudents(_allStudents);
@@ -341,7 +338,7 @@ class AppProvider with ChangeNotifier {
     _classGroups.remove(className);
 
     if (_selectedClass == className) {
-      _selectedClass = _groups.first;
+      _selectedClass = _groups.isNotEmpty ? _groups.first : null;
       _selectedGroup = null;
       _selectedGender = null;
     }

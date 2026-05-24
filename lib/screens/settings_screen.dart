@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../providers/app_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/settings_layout.dart';
 import 'settings/about_settings_screen.dart';
 import 'settings/account_settings_screen.dart';
@@ -22,7 +24,11 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsLayout(title: '设置', items: _buildSettingItems());
+    return SettingsLayout(
+      title: '设置',
+      items: _buildSettingItems(),
+      initialIndex: 1, // 默认显示点名名单
+    );
   }
 
   List<SettingItem> _buildSettingItems() {
@@ -32,12 +38,35 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.person_outline,
         pageBuilder: () => const AccountSettingsBody(),
         routeName: '/settings/account',
+        leadingBuilder: (context) {
+          final authProvider = context.watch<AuthProvider>();
+          final isLoggedIn = kAccountEnabled && authProvider.isLoggedIn;
+          final userInfo = authProvider.userInfo;
+
+          if (isLoggedIn && userInfo?.avatarUrl != null) {
+            return CircleAvatar(
+              radius: 16,
+              backgroundImage: CachedNetworkImageProvider(userInfo!.avatarUrl!),
+            );
+          }
+
+          return CircleAvatar(
+            radius: 16,
+            child: isLoggedIn && userInfo?.name.isNotEmpty == true
+                ? Text(
+                    userInfo!.name[0].toUpperCase(),
+                    style: const TextStyle(fontSize: 14),
+                  )
+                : const Icon(Icons.person_outline, size: 20),
+          );
+        },
       ),
       SettingItem(
         title: '点名名单',
         icon: Icons.people,
         pageBuilder: () => const RollCallSettingsBody(),
         routeName: '/settings/rollcall',
+        applyMaxWidth: false,
         actionsBuilder: (context) {
           final provider = context.read<AppProvider>();
           return [
@@ -57,6 +86,7 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.card_giftcard,
         pageBuilder: () => const LotterySettingsBody(),
         routeName: '/settings/lottery',
+        applyMaxWidth: false,
         actionsBuilder: (context) {
           return [
             TextButton.icon(

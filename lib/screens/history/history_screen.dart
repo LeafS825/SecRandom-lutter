@@ -141,26 +141,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: TabSwitcher(
-                tabs: const ['点名历史', '抽奖历史'],
-                selectedTab: _selectedTab,
-                onTabChanged: _onTabChanged,
-              ),
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1200),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: TabSwitcher(
+                    tabs: const ['点名历史', '抽奖历史'],
+                    selectedTab: _selectedTab,
+                    onTabChanged: _onTabChanged,
+                  ),
+                ),
+                if (_selectedTab == '点名历史')
+                  _buildClassSelector(classOptions)
+                else if (poolNames.isNotEmpty)
+                  _buildPoolSelector(poolNames),
+                Expanded(
+                  child: _selectedTab == '点名历史'
+                      ? _buildRollcallHistoryList(sortedHistory, studentMap)
+                      : _buildLotteryHistoryList(sortedLotteryRecords),
+                ),
+              ],
             ),
-            if (_selectedTab == '点名历史')
-              _buildClassSelector(classOptions)
-            else if (poolNames.isNotEmpty)
-              _buildPoolSelector(poolNames),
-            Expanded(
-              child: _selectedTab == '点名历史'
-                  ? _buildRollcallHistoryList(sortedHistory, studentMap)
-                  : _buildLotteryHistoryList(sortedLotteryRecords),
-            ),
-          ],
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(

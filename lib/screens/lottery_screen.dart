@@ -541,18 +541,12 @@ class _LotteryScreenState extends State<LotteryScreen> {
           key: _lotteryPortraitPanelKey,
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 4,
-                offset: const Offset(0, -2),
-              ),
-            ],
           ),
           constraints: const BoxConstraints(maxHeight: _kNarrowPanelHeight),
           child: Padding(
             padding: const EdgeInsets.all(8),
             child: LotteryControlPanel(
+              elevation: 0,
               prizePools: _prizePools,
               selectedPool: _selectedPool,
               drawCount: _drawCount,
@@ -794,6 +788,7 @@ class LotteryControlPanel extends StatelessWidget {
   final LotteryControlPanelLayoutMode layoutMode;
   final double? availableHeight;
   final bool fillHeight;
+  final double elevation;
   final List<PrizePool> prizePools;
   final PrizePool? selectedPool;
   final int drawCount;
@@ -819,6 +814,7 @@ class LotteryControlPanel extends StatelessWidget {
     this.layoutMode = LotteryControlPanelLayoutMode.auto,
     this.availableHeight,
     this.fillHeight = false,
+    this.elevation = 4,
     required this.prizePools,
     required this.selectedPool,
     required this.drawCount,
@@ -886,7 +882,7 @@ class LotteryControlPanel extends StatelessWidget {
     final isCompact = resolvedMode != LotteryControlPanelLayoutMode.normal;
     return Card(
       key: measureKey,
-      elevation: 4,
+      elevation: elevation,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(isCompact ? 12 : 16),
       ),

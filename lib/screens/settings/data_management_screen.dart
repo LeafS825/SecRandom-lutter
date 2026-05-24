@@ -106,28 +106,15 @@ class _DataManagementBodyState extends State<DataManagementBody> {
   }
 
   Widget _buildWideLayout() {
-    return Padding(
+    return ListView(
       padding: const EdgeInsets.all(24),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Flexible(
-            child: _buildExportSectionCard(),
-          ),
-          const SizedBox(width: 16),
-          SizedBox(
-            width: 320,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildImportSectionCard(),
-                const SizedBox(height: 16),
-                _buildLogSectionCard(),
-              ],
-            ),
-          ),
-        ],
-      ),
+      children: [
+        _buildExportSectionCard(),
+        const SizedBox(height: 16),
+        _buildImportSectionCard(),
+        const SizedBox(height: 16),
+        _buildLogSectionCard(),
+      ],
     );
   }
 
